@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import heroMockup from "../../public/hero-mockup.png";
 
@@ -17,8 +18,8 @@ const Hero = () => {
           Screen candidates 10x faster. Our AI conducts structured interviews, evaluates responses, and gives you actionable insights — so you can focus on the best talent.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fade-up" style={{ animationDelay: "0.3s" }}>
-          <Button size="lg" className="text-lg px-8 py-6 rounded-full font-body font-semibold">
-            Start for free →
+          <Button asChild size="lg" className="text-lg px-8 py-6 rounded-full font-body font-semibold">
+            <Link href="/handler/sign-up">Start for free →</Link>
           </Button>
           <Button variant="outline" size="lg" className="text-lg px-8 py-6 rounded-full font-body font-semibold">
             Watch demo

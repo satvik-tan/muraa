@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 const CTASection = () => {
@@ -12,10 +13,11 @@ const CTASection = () => {
             Join thousands of teams using AI to find the best talent faster. Start your free trial today — no credit card required.
           </p>
           <Button
+            asChild
             size="lg"
             className="bg-background text-foreground hover:bg-background/90 text-lg px-8 py-6 rounded-full font-body font-semibold"
           >
-            Start for free →
+            <Link href="/handler/sign-up">Start for free →</Link>
           </Button>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 const Navbar = () => {
@@ -16,8 +17,12 @@ const Navbar = () => {
           <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="hidden sm:inline-flex">Log in</Button>
-          <Button size="sm">Start free</Button>
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+            <Link href="/handler/sign-in">Log in</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/handler/sign-up">Start free</Link>
+          </Button>
         </div>
       </div>
     </nav>
