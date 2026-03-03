@@ -1,7 +1,10 @@
 // Example controller for handling interview logic
 // Business logic should be separated from routes
+// Example controller for handling interview logic
+// Business logic should be separated from routes
+import type { Request, Response } from "express";
 
-export const startInterview = (req, res) => {
+export const startInterview = (req:Request, res:Response) => {
   try {
     // Add interview logic here
     res.status(200).json({
@@ -16,12 +19,12 @@ export const startInterview = (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to start interview',
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 };
 
-export const getQuestions = (req, res) => {
+export const getQuestions = (req:Request, res:Response) => {
   try {
     // Add logic to fetch questions
     const questions = [
@@ -37,7 +40,7 @@ export const getQuestions = (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch questions',
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 };
