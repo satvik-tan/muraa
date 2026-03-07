@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import interviewRouter from './api/routes/interview.routes.js';
+import userRouter from './api/routes/user.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +30,13 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Protected routes — all /api/interview/* require a valid Stack Auth token
+app.use('/api/interview', interviewRouter);
+
+// User sync — call POST /api/user/sync from frontend after signup/login
+app.use('/api/user', userRouter);
+
 
 // Start server
 app.listen(PORT, () => {
