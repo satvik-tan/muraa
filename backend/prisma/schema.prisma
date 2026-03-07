@@ -1,0 +1,66 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User{
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  jobs     Job[]
+  sessions InterviewSession[]
+}
+
+model Job {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  description String
+  createdAt   DateTime @default(now())
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session InterviewSession? // one job can have at most one session
+
+  @@index([userId])
+}
+
+model InterviewSession{
+   id          String    @id @default(uuid())
+  userId      String
+  jobId       String    @unique // ← enforces one session per job at DB level
+  isCompleted Boolean   @default(false)
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job         Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  transcript  Transcript[]
+
+  @@index([userId])
+}
+
+model Transcript{
+  id        String   @id @default(uuid())
+  sessionId String
+  role      Role
+  content   String
+  timestamp DateTime @default(now())
+
+  session InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+enum Role{
+  user
+  nova
+}
+
+
