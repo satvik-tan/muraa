@@ -1,11 +1,10 @@
+// ⚡ Load .env BEFORE any other import reads process.env
+import './config/env.js';
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import interviewRouter from './api/routes/interview.routes.js';
 import userRouter from './api/routes/user.routes.js';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -37,8 +36,11 @@ app.use('/api/interview', interviewRouter);
 // User sync — call POST /api/user/sync from frontend after signup/login
 app.use('/api/user', userRouter);
 
-
-// Start server
+// 404 fallback (log for debugging)
+app.use((req, res) => {
+  console.log(`❌ 404: ${req.method} ${req.path}`);
+  res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.path}` });
+});
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📍 API endpoint: http://localhost:${PORT}`);
