@@ -13,6 +13,9 @@ import { prisma } from "../../services/prisma.js";
  * - name         → req.user.name  (optional)
  */
 export const syncUser = async (req: Request, res: Response): Promise<void> => {
+  console.log(`syncUser: called ${req.method} ${req.path}`);
+  console.log("syncUser: req.user=", req.user);
+
   const { sub: stackUserId, email, name } = req.user!;
 
   if (!email) {
