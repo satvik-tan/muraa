@@ -1,7 +1,8 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 
 export type NovaMessage =
   | { type: "transcript"; text: string }
+  | { type: "user_transcript"; text: string }
   | { type: "audio"; audio: string }
   | { type: "turn_end" }
   | { type: "session_end" }
@@ -9,15 +10,20 @@ export type NovaMessage =
 
 export function useNovaSocket(onMessage: (msg: NovaMessage) => void) {
   const wsRef = useRef<WebSocket | null>(null);
+  const mountedRef = useRef(true);
   const [status, setStatus] = useState<"idle" | "connected" | "disconnected" | "error">("idle");
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const connect = useCallback(() => {
     const ws = new WebSocket("ws://localhost:8080");
     wsRef.current = ws;
 
     ws.onopen = () => {
-      setStatus("connected");
-      console.log("Connected to backend");
+      if (mountedRef.current) setStatus("connected");
     };
 
     ws.onmessage = (event) => {
@@ -26,18 +32,25 @@ export function useNovaSocket(onMessage: (msg: NovaMessage) => void) {
     };
 
     ws.onclose = () => {
-      setStatus("disconnected");
+      wsRef.current = null;
+      if (mountedRef.current) setStatus("disconnected");
     };
 
     ws.onerror = () => {
-      setStatus("error");
+      if (mountedRef.current) setStatus("error");
     };
   }, [onMessage]);
 
   const disconnect = useCallback(() => {
-    wsRef.current?.close();
-    wsRef.current = null;
-    setStatus("idle");
+    const ws = wsRef.current;
+    if (ws) {
+      // Remove handlers before closing to prevent state updates on intentional disconnect
+      ws.onclose = null;
+      ws.onerror = null;
+      ws.close();
+      wsRef.current = null;
+    }
+    if (mountedRef.current) setStatus("idle");
   }, []);
 
   const sendAudio = useCallback((buffer: ArrayBuffer) => {
