@@ -3,15 +3,8 @@ import { AudioQueue } from "./services/audioQueue.js";
 
 const encoder = new TextEncoder();
 
-export let resolveSession!: () => void;
-export const sessionDone = new Promise<void>((res) => {
-  resolveSession = res;
-});
-
-export let stopAudio!: () => void;
-export const audioDone = new Promise<void>((res) => {
-  stopAudio = res;
-});
+// Signal is created fresh per session inside generateStream — see SessionSignal type
+export type SessionSignal = { resolve: () => void };
 
 function encodeEvent(event: object) {
   return {
@@ -21,7 +14,7 @@ function encodeEvent(event: object) {
   };
 }
 
-export async function* generateStream(queue: AudioQueue) {
+export async function* generateStream(queue: AudioQueue, sessionSignal: SessionSignal) {
   const promptName = randomUUID();
   const systemContentName = randomUUID();
   const userTextContentName = randomUUID();
@@ -86,7 +79,8 @@ export async function* generateStream(queue: AudioQueue) {
 
   yield encodeEvent({ contentEnd: { promptName, contentName: userAudioContentName } });
 
-  // wait for Nova to finish responding
+  // wait for Nova to finish responding — resolved externally when ASSISTANT contentEnd arrives
+  const sessionDone = new Promise<void>((res) => { sessionSignal.resolve = res; });
   await sessionDone;
 
   yield encodeEvent({ promptEnd: { promptName } });
