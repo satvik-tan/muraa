@@ -1,3 +1,6 @@
+// ⚡ Load .env BEFORE any other import reads process.env
+import './config/env.js';
+
 import { WebSocketServer, WebSocket } from "ws";
 import { AudioQueue } from "./services/audioQueue.js"
 import { startNovaSession } from "./novaConnect.js"

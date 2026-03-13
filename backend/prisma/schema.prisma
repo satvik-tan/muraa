@@ -13,7 +13,7 @@ model User{
   email     String   @unique
   name      String?
   createdAt DateTime @default(now())
-
+  stackUserId String   @unique
   jobs     Job[]
   sessions InterviewSession[]
 }
