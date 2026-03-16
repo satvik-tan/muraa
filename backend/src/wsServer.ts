@@ -2,18 +2,49 @@
 import './config/env.js';
 
 import { WebSocketServer, WebSocket } from "ws";
-import { AudioQueue } from "./services/audioQueue.js"
-import { startNovaSession } from "./novaConnect.js"
+import { IncomingMessage } from "http";
+import { AudioQueue } from "./services/audioQueue.js";
+import { startNovaSession } from "./novaConnect.js";
+import { prisma } from "./services/prisma.js";
 
 const wss = new WebSocketServer({ port: 8080 });
 console.log("WebSocket server running on ws://localhost:8080");
 
-wss.on("connection", (ws: WebSocket) => {
+wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
   console.log("Client connected");
 
-  const queue = new AudioQueue();
+  // Parse query params from the WS URL
+  // e.g. ws://localhost:8080?jobId=xxx&candidateName=yyy&candidateEmail=zzz
+  const url = new URL(req.url ?? "/", "http://localhost:8080");
+  const jobId         = url.searchParams.get("jobId");
+  const candidateName  = url.searchParams.get("candidateName") ?? "Anonymous";
+  const candidateEmail = url.searchParams.get("candidateEmail") ?? "";
 
-  startNovaSession(ws, queue).catch((err) => {
+  const queue = new AudioQueue();
+  let sessionId: string | undefined;
+
+  // Create a DB session if a jobId was provided
+  if (jobId) {
+    try {
+      const job = await prisma.job.findUnique({ where: { id: jobId } });
+      if (!job) {
+        ws.send(JSON.stringify({ type: "error", message: "Job not found" }));
+        ws.close();
+        return;
+      }
+      const session = await prisma.interviewSession.create({
+        data: { jobId, candidateName, candidateEmail },
+      });
+      sessionId = session.id;
+    } catch (err) {
+      console.error("Failed to create interview session:", err);
+      ws.send(JSON.stringify({ type: "error", message: "Failed to create session" }));
+      ws.close();
+      return;
+    }
+  }
+
+  startNovaSession(ws, queue, sessionId).catch((err) => {
     console.error("Nova session error:", err.message);
     ws.send(JSON.stringify({ type: "error", message: err.message }));
   });
@@ -22,10 +53,16 @@ wss.on("connection", (ws: WebSocket) => {
     queue.push(data.toString("base64"));
   });
 
-  ws.on("close", () => {
+  ws.on("close", async () => {
     console.log("Client disconnected");
     queue.push("STOP");
     queue.clear();
+    if (sessionId) {
+      await prisma.interviewSession.update({
+        where: { id: sessionId },
+        data: { isCompleted: true, endedAt: new Date() },
+      }).catch(() => {});
+    }
   });
 
   ws.on("error", (err) => {

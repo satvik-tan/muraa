@@ -8,7 +8,7 @@ export type NovaMessage =
   | { type: "session_end" }
   | { type: "error"; message: string };
 
-export function useNovaSocket(onMessage: (msg: NovaMessage) => void) {
+export function useNovaSocket(onMessage: (msg: NovaMessage) => void, wsUrl = "ws://localhost:8080") {
   const wsRef = useRef<WebSocket | null>(null);
   const mountedRef = useRef(true);
   const [status, setStatus] = useState<"idle" | "connected" | "disconnected" | "error">("idle");
@@ -19,7 +19,7 @@ export function useNovaSocket(onMessage: (msg: NovaMessage) => void) {
   }, []);
 
   const connect = useCallback(() => {
-    const ws = new WebSocket("ws://localhost:8080");
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -39,7 +39,7 @@ export function useNovaSocket(onMessage: (msg: NovaMessage) => void) {
     ws.onerror = () => {
       if (mountedRef.current) setStatus("error");
     };
-  }, [onMessage]);
+  }, [onMessage, wsUrl]);
 
   const disconnect = useCallback(() => {
     const ws = wsRef.current;

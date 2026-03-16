@@ -8,45 +8,53 @@ datasource db {
   provider = "postgresql"
 }
 
-model User{
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  name        String?
+  createdAt   DateTime @default(now())
   stackUserId String   @unique
+
   jobs     Job[]
   sessions InterviewSession[]
 }
 
 model Job {
-  id          String   @id @default(uuid())
-  userId      String
-  title       String
-  description String
-  createdAt   DateTime @default(now())
+  id              String   @id @default(uuid())
+  userId          String
+  title           String
+  description     String
+  companyName     String?
+  experienceLevel String?  // "Junior" | "Mid" | "Senior"
+  skills          String[] // Postgres TEXT[] array
+  shareId         String   @unique @default(uuid())
+  createdAt       DateTime @default(now())
 
-  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  session InterviewSession? // one job can have at most one session
-
-  @@index([userId])
-}
-
-model InterviewSession{
-   id          String    @id @default(uuid())
-  userId      String
-  jobId       String    @unique // ← enforces one session per job at DB level
-  isCompleted Boolean   @default(false)
-  startedAt   DateTime  @default(now())
-  endedAt     DateTime?
-
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  job         Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  transcript  Transcript[]
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions InterviewSession[]
 
   @@index([userId])
 }
 
-model Transcript{
+model InterviewSession {
+  id             String    @id @default(uuid())
+  userId         String?   // nullable — guest candidates have no account
+  jobId          String    // @unique removed — many sessions per job
+  candidateName  String?
+  candidateEmail String?
+  isCompleted    Boolean   @default(false)
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+
+  user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  job        Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  transcript Transcript[]
+
+  @@index([userId])
+  @@index([jobId])
+}
+
+model Transcript {
   id        String   @id @default(uuid())
   sessionId String
   role      Role
@@ -58,9 +66,7 @@ model Transcript{
   @@index([sessionId])
 }
 
-enum Role{
+enum Role {
   user
   nova
 }
-
-

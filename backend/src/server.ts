@@ -1,10 +1,11 @@
 // ⚡ Load .env BEFORE any other import reads process.env
-import './config/env.js';
+import './config/env.ts';
 
 import express from 'express';
 import cors from 'cors';
 import interviewRouter from './api/routes/interview.routes.js';
 import userRouter from './api/routes/user.routes.js';
+import jobRouter from './api/routes/job.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,6 +36,9 @@ app.use('/api/interview', interviewRouter);
 
 // User sync — call POST /api/user/sync from frontend after signup/login
 app.use('/api/user', userRouter);
+
+// Job CRUD — /api/jobs (public share route + protected CRUD + candidates)
+app.use('/api/jobs', jobRouter);
 
 // 404 fallback (log for debugging)
 app.use((req, res) => {

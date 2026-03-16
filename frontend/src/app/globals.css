@@ -93,6 +93,39 @@
   --sidebar-ring: oklch(0.62 0.165 30);
 }
 
+/* Cognihire lilac palette, enabled with NEXT_PUBLIC_BRAND=cognihire */
+html[data-brand="cognihire"] {
+  --background: oklch(0.975 0.015 305);
+  --foreground: oklch(0.22 0.04 300);
+  --card: oklch(0.992 0.01 305);
+  --card-foreground: oklch(0.22 0.04 300);
+  --popover: oklch(0.992 0.01 305);
+  --popover-foreground: oklch(0.22 0.04 300);
+
+  --primary: oklch(0.66 0.16 315);
+  --primary-foreground: oklch(0.99 0.01 305);
+  --secondary: oklch(0.9 0.05 305);
+  --secondary-foreground: oklch(0.34 0.05 305);
+
+  --muted: oklch(0.95 0.015 305);
+  --muted-foreground: oklch(0.52 0.02 305);
+  --accent: oklch(0.93 0.035 305);
+  --accent-foreground: oklch(0.24 0.04 305);
+
+  --border: oklch(0.86 0.02 305);
+  --input: oklch(0.86 0.02 305);
+  --ring: oklch(0.66 0.16 315);
+
+  --sidebar: oklch(0.99 0.01 305);
+  --sidebar-foreground: oklch(0.22 0.04 300);
+  --sidebar-primary: oklch(0.66 0.16 315);
+  --sidebar-primary-foreground: oklch(0.99 0.01 305);
+  --sidebar-accent: oklch(0.93 0.035 305);
+  --sidebar-accent-foreground: oklch(0.24 0.04 305);
+  --sidebar-border: oklch(0.86 0.02 305);
+  --sidebar-ring: oklch(0.66 0.16 315);
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

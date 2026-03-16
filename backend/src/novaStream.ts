@@ -53,7 +53,14 @@ export async function* generateStream(queue: AudioQueue, sessionSignal: SessionS
 
   // 3. System prompt
   yield encodeEvent({ contentStart: { promptName, contentName: systemContentName, type: "TEXT", interactive: false, role: "SYSTEM", textInputConfiguration: { mediaType: "text/plain" } } });
-  yield encodeEvent({ textInput: { promptName, contentName: systemContentName, content: "You are a technical interviewer. Ask one concise question at a time." } });
+  yield encodeEvent({
+    textInput: {
+      promptName,
+      contentName: systemContentName,
+      content:
+        "You are an interviewer conducting a live candidate interview. Ask exactly one concise question at a time and wait for the candidate reply before asking the next question. Do not answer your own questions and do not invent candidate responses. Start with personal background questions first: full name, current role, years of experience, primary tech stack, and target role. After collecting these basics, continue to role-relevant technical and behavioral questions.",
+    },
+  });
   yield encodeEvent({ contentEnd: { promptName, contentName: systemContentName } });
 
   // 4. User text — kick off conversation

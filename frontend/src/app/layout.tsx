@@ -3,6 +3,7 @@ import { StackProvider, StackTheme } from "@stackframe/stack";
 import { stackClientApp } from "../stack/client";
 import { DM_Sans, Geist_Mono, Merienda } from "next/font/google";
 import { Providers } from "./providers";
+import { getBrandConfig } from "@/lib/branding";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -22,9 +23,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const brand = getBrandConfig();
+
 export const metadata: Metadata = {
-  title: "Mura AI",
-  description: "AI Interview Assistant",
+  title: brand.appNameWithSuffix,
+  description: brand.description,
 };
 
 export default function RootLayout({
@@ -33,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-brand={brand.key}>
       <body
         className={`${dmSans.variable} ${merienda.variable} ${geistMono.variable} antialiased`}
       ><StackProvider app={stackClientApp}><StackTheme>
