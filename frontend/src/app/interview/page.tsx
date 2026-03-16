@@ -56,7 +56,6 @@ export default function InterviewPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <main className="container mx-auto max-w-5xl px-4 pt-28 pb-16">
         {/* Header */}
