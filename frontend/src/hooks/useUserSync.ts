@@ -34,7 +34,7 @@ export function useUserSync() {
         }
 
         // Call the backend sync endpoint (explicitly target local backend on port 5000)
-        const response = await fetch("http://localhost:5000/api/user/sync", {
+        const response = await fetch("http://localhost:8000/api/user/sync", {
           method: "POST",
           headers: {
             "x-stack-access-token": accessToken,

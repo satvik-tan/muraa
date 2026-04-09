@@ -65,5 +65,5 @@ export function useMicRecorder(onAudioChunk: (buffer: ArrayBuffer) => void) {
     setIsRecording(false);
   }, []);
 
-  return { startRecording, stopRecording, isRecording };
+  return { startRecording, stopRecording, isRecording,streamRef };
 }

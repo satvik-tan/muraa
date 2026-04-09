@@ -1,6 +1,9 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../services/prisma.js";
 
+type JobIdParams = { id: string };
+type ShareIdParams = { shareId: string };
+
 /** Resolve the Stack Auth JWT subject to the DB User row */
 async function getUserByStackId(stackUserId: string) {
   return prisma.user.findUnique({ where: { stackUserId } });
@@ -69,7 +72,7 @@ export const listJobs = async (req: Request, res: Response): Promise<void> => {
 };
 
 // DELETE /api/jobs/:id
-export const deleteJob = async (req: Request, res: Response): Promise<void> => {
+export const deleteJob = async (req: Request<JobIdParams>, res: Response): Promise<void> => {
   try {
     const user = await getUserByStackId(req.user!.sub);
     if (!user) {
@@ -95,7 +98,7 @@ export const deleteJob = async (req: Request, res: Response): Promise<void> => {
 };
 
 // GET /api/jobs/share/:shareId  — PUBLIC, no auth
-export const getJobByShareId = async (req: Request, res: Response): Promise<void> => {
+export const getJobByShareId = async (req: Request<ShareIdParams>, res: Response): Promise<void> => {
   try {
     const job = await prisma.job.findUnique({
       where: { shareId: req.params.shareId },
@@ -125,7 +128,7 @@ export const getJobByShareId = async (req: Request, res: Response): Promise<void
 };
 
 // GET /api/jobs/:id/candidates
-export const getJobCandidates = async (req: Request, res: Response): Promise<void> => {
+export const getJobCandidates = async (req: Request<JobIdParams>, res: Response): Promise<void> => {
   try {
     const user = await getUserByStackId(req.user!.sub);
     if (!user) {

@@ -36,6 +36,7 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
         data: { jobId, candidateName, candidateEmail },
       });
       sessionId = session.id;
+      ws.send(JSON.stringify({ type: "session_created", sessionId }));
     } catch (err) {
       console.error("Failed to create interview session:", err);
       ws.send(JSON.stringify({ type: "error", message: "Failed to create session" }));

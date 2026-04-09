@@ -45,6 +45,7 @@ model InterviewSession {
   isCompleted    Boolean   @default(false)
   startedAt      DateTime  @default(now())
   endedAt        DateTime?
+  recordingKey String?
 
   user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   job        Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)

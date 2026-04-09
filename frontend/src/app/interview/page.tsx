@@ -6,10 +6,11 @@ import { useNovaSocket } from "@/hooks/useNovaSocket";
 import { useMicRecorder } from "@/hooks/useMicRecorder";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { InterviewControls } from "@/components/InterviewControls";
+import { InterviewTimer } from "@/components/InterviewTimer";
 import { TranscriptDisplay } from "@/components/TranscriptDisplay";
-import Navbar from "@/components/Navbar";
 import type { NovaMessage } from "@/hooks/useNovaSocket";
 import type { TranscriptEntry } from "@/components/TranscriptDisplay";
+
 
 function upsertStreamingTranscript(
   prev: TranscriptEntry[],
@@ -34,7 +35,35 @@ function upsertStreamingTranscript(
     return [...prev.slice(0, -1), { ...last, text: merged }];
   }
 
+  // **NEW: Check recent same-role messages for similarity**
+  // Initial transcripts may arrive rapidly without clear contentName grouping
+  const recentSameRole = prev
+    .slice(-3) // Check last 3 messages
+    .filter((m) => m.role === next.role);
+  
+  for (const recent of recentSameRole) {
+    // If new text is very similar to a recent message (>70% overlap)
+    const similarity = calculateSimilarity(recent.text, text);
+    if (similarity > 0.7) {
+      // Find the index and replace it with the longer version
+      const idx = prev.lastIndexOf(recent);
+      const merged = text.length >= recent.text.length ? text : recent.text;
+      return [...prev.slice(0, idx), { ...recent, text: merged }, ...prev.slice(idx + 1)];
+    }
+  }
+
   return [...prev, { ...next, text }];
+}
+
+// Calculate text similarity (0-1) using Jaccard index
+function calculateSimilarity(a: string, b: string): number {
+  const wordsA = new Set(a.toLowerCase().split(/\s+/));
+  const wordsB = new Set(b.toLowerCase().split(/\s+/));
+  
+  const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
+  const union = new Set([...wordsA, ...wordsB]);
+  
+  return union.size === 0 ? 0 : intersection.size / union.size;
 }
 
 export default function InterviewPage() {
@@ -48,13 +77,27 @@ export default function InterviewPage() {
 function InterviewContent() {
   const searchParams = useSearchParams();
   const jobId = searchParams.get("jobId");
+  const sessionId = searchParams.get('interviewID')
   const wsUrl = jobId
     ? `ws://localhost:8080?jobId=${encodeURIComponent(jobId)}`
     : "ws://localhost:8080";
 
   const [messages, setMessages] = useState<TranscriptEntry[]>([]);
   const [sessionEnded, setSessionEnded] = useState(false);
+  const [hasInterviewStarted, setHasInterviewStarted] = useState(false);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const { initAudio, playAudio, stopAudio } = useAudioPlayer();
+
+  useEffect(() => {
+    if (!isTimerRunning) return;
+
+    const intervalId = window.setInterval(() => {
+      setElapsedSeconds((current) => current + 1);
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isTimerRunning]);
 
   const handleMessage = useCallback(
     (msg: NovaMessage) => {
@@ -66,6 +109,7 @@ function InterviewContent() {
       if (msg.type === "turn_end") console.log("Nova finished speaking");
       if (msg.type === "session_end") {
         setSessionEnded(true);
+        setIsTimerRunning(false);
         console.log("Session ended");
       }
       if (msg.type === "error") console.error("Error:", msg.message);
@@ -87,11 +131,16 @@ function InterviewContent() {
 
   const handleConnect = useCallback(() => {
     initAudio(); // create AudioContext inside the click gesture
+    setSessionEnded(false);
+    setHasInterviewStarted(true);
+    setElapsedSeconds(0);
+    setIsTimerRunning(true);
     connect();
   }, [initAudio, connect]);
 
   const handleDisconnect = useCallback(() => {
     stopRecording();
+    setIsTimerRunning(false);
     disconnect();
   }, [stopRecording, disconnect]);
 
@@ -108,6 +157,11 @@ function InterviewContent() {
           <p className="font-body text-muted-foreground text-base">
             Connect, start speaking, and let Nova guide you through the session.
           </p>
+          {hasInterviewStarted && (
+            <div className="mt-4">
+              <InterviewTimer seconds={elapsedSeconds} isRunning={isTimerRunning} />
+            </div>
+          )}
         </div>
 
         {/* Two-column layout */}

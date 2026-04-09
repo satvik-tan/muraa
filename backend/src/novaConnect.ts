@@ -6,6 +6,17 @@ import { AudioQueue } from "./services/audioQueue.js"
 import { WebSocket } from "ws";
 import { prisma } from "./services/prisma.js";
 
+// Calculate text similarity using Jaccard index (0-1)
+function calculateSimilarity(a: string, b: string): number {
+  const wordsA = new Set(a.toLowerCase().split(/\s+/));
+  const wordsB = new Set(b.toLowerCase().split(/\s+/));
+  
+  const intersection = new Set(Array.from(wordsA).filter(x => wordsB.has(x)));
+  const union = new Set([...Array.from(wordsA), ...Array.from(wordsB)]);
+  
+  return union.size === 0 ? 0 : intersection.size / union.size;
+}
+
 export async function startNovaSession(ws: WebSocket, queue: AudioQueue, sessionId?: string) {
   // Fresh signal per session — avoids stale resolved promise on reconnect
   const sessionSignal: SessionSignal = { resolve: () => {} };
@@ -21,6 +32,8 @@ export async function startNovaSession(ws: WebSocket, queue: AudioQueue, session
   const roleMap = new Map<string, string>();
   // Keep one DB transcript row per streamed content block.
   const transcriptRowByContentName = new Map<string, { id: string; lastContent: string }>();
+  // Track recent transcripts without contentName to prevent duplicates
+  const recentTranscripts: Array<{ role: string; content: string; id: string; timestamp: number }> = [];
 
   for await (const event of response.body!) {
     if (!event.chunk?.bytes) continue;
@@ -87,15 +100,54 @@ export async function startNovaSession(ws: WebSocket, queue: AudioQueue, session
           }
         } else {
           // Fallback when provider does not send contentName for text output.
-          prisma.transcript
-            .create({
-              data: {
-                sessionId,
-                role: isUser ? "user" : "nova",
-                content,
-              },
-            })
-            .catch(() => {}); // non-blocking — never fail the stream for a DB error
+          // Check if similar content was recently saved to prevent duplicates.
+          const role = isUser ? "user" : "nova";
+          const now = Date.now();
+          
+          // Clean up old entries (older than 30 seconds)
+          const cutoff = now - 30000;
+          const validIdx = recentTranscripts.findIndex(r => r.timestamp > cutoff);
+          if (validIdx > 0) recentTranscripts.splice(0, validIdx);
+          
+          // Check for similar recent transcripts of the same role
+          let foundSimilar = false;
+          for (const recent of recentTranscripts.filter(r => r.role === role)) {
+            const similarity = calculateSimilarity(recent.content, content);
+            
+            // If highly similar (>70%), update existing instead of creating new
+            if (similarity > 0.7) {
+              foundSimilar = true;
+              // Update with the longer/newer content
+              if (content.length >= recent.content.length) {
+                recent.content = content;
+                recent.timestamp = now;
+                
+                prisma.transcript
+                  .update({
+                    where: { id: recent.id },
+                    data: { content },
+                  })
+                  .catch(() => {}); // non-blocking
+              }
+              break;
+            }
+          }
+          
+          // Create new transcript only if not similar to recent ones
+          if (!foundSimilar) {
+            prisma.transcript
+              .create({
+                data: {
+                  sessionId,
+                  role,
+                  content,
+                },
+              })
+              .then((row) => {
+                recentTranscripts.push({ role, content, id: row.id, timestamp: now });
+              })
+              .catch(() => {}); // non-blocking — never fail the stream for a DB error
+          }
         }
       }
     }

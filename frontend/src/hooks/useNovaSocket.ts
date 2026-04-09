@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 
 export type NovaMessage =
+  | { type: "session_created"; sessionId: string }
   | { type: "transcript"; text: string }
   | { type: "user_transcript"; text: string }
   | { type: "audio"; audio: string }

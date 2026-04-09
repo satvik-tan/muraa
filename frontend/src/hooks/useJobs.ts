@@ -3,7 +3,7 @@
 import { useStackApp } from "@stackframe/stack";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-const API = "http://localhost:5000";
+const API = "http://localhost:8000";
 
 async function authedFetch(url: string, token: string, init?: RequestInit) {
   const res = await fetch(url, {
@@ -62,6 +62,7 @@ export interface CandidateSession {
   isCompleted: boolean;
   startedAt: string;
   endedAt: string | null;
+  recordingKey?: string | null;
   transcript: TranscriptRow[];
 }
 

@@ -16,7 +16,8 @@ export function useAudioPlayer() {
     }
   }, []);
 
-  const playAudio = useCallback((base64: string) => {
+  const playAudio = useCallback((base64: string,onSourceCreated?:(source:AudioBufferSourceNode)=>void) => {
+    console.log("playAudio called, AudioContext state:", audioCtxRef.current?.state)
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -35,6 +36,8 @@ export function useAudioPlayer() {
       const source = audioCtx.createBufferSource();
       source.buffer = buffer;
       source.connect(audioCtx.destination);
+
+      onSourceCreated?.(source)
       const startTime = Math.max(audioCtx.currentTime, nextPlayTimeRef.current);
       source.start(startTime);
       nextPlayTimeRef.current = startTime + buffer.duration;
@@ -53,5 +56,7 @@ export function useAudioPlayer() {
     nextPlayTimeRef.current = 0;
   }, []);
 
-  return { initAudio, playAudio, stopAudio };
+  const getAudioContext = useCallback(()=>audioCtxRef.current,[])
+
+  return { initAudio, playAudio, stopAudio,getAudioContext };
 }
