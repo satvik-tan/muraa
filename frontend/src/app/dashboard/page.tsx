@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useUserSync } from "@/hooks/useUserSync";
 import { useJobs, useJobCandidates, type Job, type CandidateSession, type CreateJobInput } from "@/hooks/useJobs";
-import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +19,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { useInterviewUpload } from "@/hooks/useInterviewUpload";
 
 // ── Create Job Form ──────────────────────────────────────────────────────────
 
@@ -184,6 +184,43 @@ function TranscriptViewer({ session }: { session: CandidateSession }) {
   );
 }
 
+function RecordingAction({ session }: { session: CandidateSession }) {
+  const hasRecording = Boolean(session.recordingKey?.trim());
+  const { getPlaybackUrl } = useInterviewUpload();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handlePlay = async () => {
+    try {
+      setIsLoading(true);
+      const { url } = await getPlaybackUrl.mutateAsync(session.id);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load recording.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!hasRecording) {
+    return (
+      <span className="text-xs text-muted-foreground" title="Recording has not been uploaded for this interview session yet.">
+        No recording
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={isLoading}
+      onClick={handlePlay}
+      className="text-xs text-primary underline underline-offset-2 hover:opacity-70 transition-opacity"
+    >
+      {isLoading ? "Loading…" : "Play Recording"}
+    </button>
+  );
+}
+
 // ── Candidates Dialog ────────────────────────────────────────────────────────
 
 function CandidatesDialog({
@@ -218,6 +255,7 @@ function CandidatesDialog({
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Transcript</TableHead>
+                <TableHead>Recording</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -235,6 +273,9 @@ function CandidatesDialog({
                   </TableCell>
                   <TableCell>
                     <TranscriptViewer session={c} />
+                  </TableCell>
+                  <TableCell>
+                    <RecordingAction session={c} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -377,7 +418,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <main className="container mx-auto max-w-5xl px-4 pt-28 pb-16">
         {/* Header */}

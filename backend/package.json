@@ -19,8 +19,10 @@
   "dependencies": {
     "@aws-crypto/sha256-js": "^5.2.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1000.0",
+    "@aws-sdk/client-s3": "^3.1019.0",
     "@aws-sdk/credential-provider-node": "^3.972.14",
     "@aws-sdk/protocol-http": "^3.370.0",
+    "@aws-sdk/s3-request-presigner": "^3.1019.0",
     "@aws-sdk/signature-v4": "^3.370.0",
     "@prisma/adapter-neon": "^7.4.2",
     "@prisma/client": "^7.4.2",
