@@ -24,6 +24,7 @@
     "@aws-sdk/protocol-http": "^3.370.0",
     "@aws-sdk/s3-request-presigner": "^3.1019.0",
     "@aws-sdk/signature-v4": "^3.370.0",
+    "@google/generative-ai": "^0.24.1",
     "@prisma/adapter-neon": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "@stackframe/stack": "^2.8.71",

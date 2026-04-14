@@ -1,8 +1,16 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../services/prisma.js";
+import {
+  evaluateTranscript,
+  getCachedEvaluation,
+  hashTranscript,
+  setCachedEvaluation,
+} from "../../services/transcriptEvaluation.js";
 
 type JobIdParams = { id: string };
 type ShareIdParams = { shareId: string };
+type EvaluateParams = { id: string; sessionId: string };
+type PublicEvaluateParams = { sessionId: string };
 
 /** Resolve the Stack Auth JWT subject to the DB User row */
 async function getUserByStackId(stackUserId: string) {
@@ -155,5 +163,127 @@ export const getJobCandidates = async (req: Request<JobIdParams>, res: Response)
       message: "Failed to fetch candidates",
       error: error instanceof Error ? error.message : String(error),
     });
+  }
+};
+
+// POST /api/jobs/:id/candidates/:sessionId/evaluate
+export const evaluateCandidateSession = async (
+  req: Request<EvaluateParams>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const user = await getUserByStackId(req.user!.sub);
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found" });
+      return;
+    }
+
+    const job = await prisma.job.findUnique({ where: { id: req.params.id } });
+    if (!job || job.userId !== user.id) {
+      res.status(404).json({ success: false, message: "Job not found" });
+      return;
+    }
+
+    const session = await prisma.interviewSession.findFirst({
+      where: { id: req.params.sessionId, jobId: req.params.id },
+      include: {
+        transcript: {
+          orderBy: { timestamp: "asc" },
+          select: {
+            role: true,
+            content: true,
+            timestamp: true,
+          },
+        },
+      },
+    });
+
+    if (!session) {
+      res.status(404).json({ success: false, message: "Interview session not found" });
+      return;
+    }
+
+    if (!session.transcript.length) {
+      res.status(400).json({ success: false, message: "No transcript found for this session" });
+      return;
+    }
+
+    const transcriptHash = hashTranscript(session.transcript);
+    const cached = getCachedEvaluation(session.id, transcriptHash);
+    if (cached) {
+      res.status(200).json({
+        success: true,
+        cached: true,
+        data: cached,
+      });
+      return;
+    }
+
+    const evaluation = await evaluateTranscript(session.transcript);
+    setCachedEvaluation(session.id, transcriptHash, evaluation);
+
+    res.status(200).json({
+      success: true,
+      cached: false,
+      data: evaluation,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to evaluate transcript";
+    res.status(502).json({ success: false, message });
+  }
+};
+
+// POST /api/jobs/public/evaluate/:sessionId
+export const evaluateCandidateSessionPublic = async (
+  req: Request<PublicEvaluateParams>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const session = await prisma.interviewSession.findUnique({
+      where: { id: req.params.sessionId },
+      include: {
+        transcript: {
+          orderBy: { timestamp: "asc" },
+          select: {
+            role: true,
+            content: true,
+            timestamp: true,
+          },
+        },
+      },
+    });
+
+    if (!session) {
+      res.status(404).json({ success: false, message: "Interview session not found" });
+      return;
+    }
+
+    if (!session.transcript.length) {
+      res.status(400).json({ success: false, message: "No transcript found for this session" });
+      return;
+    }
+
+    const transcriptHash = hashTranscript(session.transcript);
+    const cached = getCachedEvaluation(session.id, transcriptHash);
+    if (cached) {
+      res.status(200).json({
+        success: true,
+        cached: true,
+        data: cached,
+      });
+      return;
+    }
+
+    const evaluation = await evaluateTranscript(session.transcript);
+    setCachedEvaluation(session.id, transcriptHash, evaluation);
+
+    res.status(200).json({
+      success: true,
+      cached: false,
+      data: evaluation,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to evaluate transcript";
+    res.status(502).json({ success: false, message });
   }
 };
