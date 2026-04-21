@@ -211,7 +211,11 @@ export default function SharedInterviewPage() {
 
       const payload = await res.json();
       if (!res.ok || !payload?.success || !payload?.data?.id) {
-        setFormError(payload?.message ?? "Failed to start interview. Please try again.");
+        const fallbackMessage =
+          res.status >= 500
+            ? "The server is currently unavailable. Please try again in a moment."
+            : "Unable to start interview with the submitted details. Please review and retry.";
+        setFormError(payload?.message ?? fallbackMessage);
         return;
       }
 

@@ -173,10 +173,10 @@ export const createCandidateSessionByShareId = async (
 
     res.status(201).json({ success: true, data: { ...session, shareId: job.shareId } });
   } catch (error) {
+    console.error("Failed to create candidate session", error);
     res.status(500).json({
       success: false,
       message: "Failed to create candidate session",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 };
