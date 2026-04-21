@@ -243,7 +243,7 @@ export default function SharedInterviewPage() {
         }),
       });
 
-      let responseData: unknown = null;
+      let responseData: unknown;
       const isJsonResponse = (res.headers.get("content-type") ?? "").includes("application/json");
       if (isJsonResponse) {
         try {
