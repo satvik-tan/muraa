@@ -13,7 +13,7 @@ import { TranscriptDisplay } from "@/components/TranscriptDisplay";
 import Navbar from "@/components/Navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import type { NovaMessage } from "@/hooks/useNovaSocket";
 import type { TranscriptEntry } from "@/components/TranscriptDisplay";
 import { useInterviewRecorder } from "@/hooks/useInterviewRecorder";
@@ -467,7 +467,7 @@ export default function SharedInterviewPage() {
               {accessStatus !== "not_authenticated" && accessStatus !== "approved" && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">Application</label>
-                  <Input
+                  <Textarea
                     placeholder="Why are you a strong fit for this role?"
                     value={applicationText}
                     onChange={(e) => setApplicationText(e.target.value)}
@@ -478,7 +478,7 @@ export default function SharedInterviewPage() {
 
               {accessStatus === "pending" && (
                 <p className="text-sm text-muted-foreground">
-                  Your application was submitted. Interview access will be enabled after HR approval and inmail.
+                  Your application was submitted. Interview access will be enabled after HR approval and InMail.
                 </p>
               )}
 
