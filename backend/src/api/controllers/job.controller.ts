@@ -235,28 +235,33 @@ export const applyToJobByShareId = async (req: Request<ShareIdParams>, res: Resp
       return;
     }
 
-    const application = await prisma.jobApplication.upsert({
-      where: {
-        jobId_userId: {
+    const application = await prisma.$transaction(async (tx: any) => {
+      const savedApplication = await tx.jobApplication.upsert({
+        where: {
+          jobId_userId: {
+            jobId: job.id,
+            userId: user.id,
+          },
+        },
+        update: {
+          applicationText,
+          status: "pending",
+          approvedAt: null,
+        },
+        create: {
           jobId: job.id,
           userId: user.id,
+          applicationText,
         },
-      },
-      update: {
-        applicationText,
-        status: "pending",
-        approvedAt: null,
-      },
-      create: {
-        jobId: job.id,
-        userId: user.id,
-        applicationText,
-      },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-      },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      await tx.inMail.deleteMany({ where: { applicationId: savedApplication.id } });
+      return savedApplication;
     });
 
     res.status(200).json({ success: true, data: application });

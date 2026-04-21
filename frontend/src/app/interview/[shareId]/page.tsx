@@ -536,7 +536,7 @@ export default function SharedInterviewPage() {
             <p className="text-muted-foreground text-base mb-2">{job.companyName}</p>
           )}
           <p className="text-muted-foreground text-sm">
-            Interviewing as <span className="font-medium text-foreground">{name || "Unknown"}</span>
+            Interviewing as <span className="font-medium text-foreground">{name?.trim() || "Unknown"}</span>
           </p>
           {hasInterviewStarted && (
             <div className="mt-4">
