@@ -25,6 +25,32 @@ function isValidCandidateEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email);
 }
 
+function parseCandidateSessionResponse(responseData: unknown): {
+  success: boolean;
+  message: string | null;
+  sessionId: string | null;
+} {
+  if (!responseData || typeof responseData !== "object") {
+    return { success: false, message: null, sessionId: null };
+  }
+
+  const message =
+    "message" in responseData && typeof responseData.message === "string"
+      ? responseData.message
+      : null;
+  const sessionId =
+    "data" in responseData &&
+    responseData.data &&
+    typeof responseData.data === "object" &&
+    "id" in responseData.data &&
+    typeof responseData.data.id === "string"
+      ? responseData.data.id
+      : null;
+  const success = "success" in responseData && responseData.success === true;
+
+  return { success, message, sessionId };
+}
+
 function upsertStreamingTranscript(
   prev: TranscriptEntry[],
   next: TranscriptEntry,
@@ -217,54 +243,39 @@ export default function SharedInterviewPage() {
         }),
       });
 
-      let payload: unknown = null;
+      let responseData: unknown = null;
       const isJsonResponse = (res.headers.get("content-type") ?? "").includes("application/json");
       if (isJsonResponse) {
         try {
-          payload = await res.json();
+          responseData = await res.json();
         } catch (error) {
           console.error("Failed to parse candidate session response", error);
         }
       }
 
-      const messageFromPayload =
-        payload && typeof payload === "object" && "message" in payload && typeof payload.message === "string"
-          ? payload.message
-          : null;
-      const sessionIdFromPayload =
-        payload &&
-        typeof payload === "object" &&
-        "data" in payload &&
-        payload.data &&
-        typeof payload.data === "object" &&
-        "id" in payload.data &&
-        typeof payload.data.id === "string"
-          ? payload.data.id
-          : null;
-      const successFromPayload =
-        payload && typeof payload === "object" && "success" in payload && payload.success === true;
+      const parsedResponse = parseCandidateSessionResponse(responseData);
 
       if (!res.ok) {
         const fallbackMessage =
           res.status >= 500
             ? "The server is currently unavailable. Please try again in a moment."
             : "Unable to start interview with the submitted details. Please review and retry.";
-        setFormError(messageFromPayload ?? fallbackMessage);
+        setFormError(parsedResponse.message ?? fallbackMessage);
         return;
       }
 
-      if (!successFromPayload) {
-        setFormError(messageFromPayload ?? "Unable to start interview. Please try again.");
+      if (!parsedResponse.success) {
+        setFormError(parsedResponse.message ?? "Unable to start interview. Please try again.");
         return;
       }
 
-      if (!sessionIdFromPayload) {
+      if (!parsedResponse.sessionId) {
         setFormError("Interview setup is incomplete. Please refresh and try again.");
         return;
       }
 
-      const url = `${WS_BASE_URL}?sessionId=${encodeURIComponent(sessionIdFromPayload)}`;
-      setInterviewSessionId(sessionIdFromPayload);
+      const url = `${WS_BASE_URL}?sessionId=${encodeURIComponent(parsedResponse.sessionId)}`;
+      setInterviewSessionId(parsedResponse.sessionId);
       setWsUrl(url);
       setPageState("ready");
     } catch (error) {
