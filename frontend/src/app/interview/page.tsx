@@ -106,7 +106,7 @@ function InterviewContent() {
       if (msg.type === "user_transcript")
         setMessages((prev) => upsertStreamingTranscript(prev, { role: "user", text: msg.text }));
       if (msg.type === "audio") playAudio(msg.audio);
-      if (msg.type === "turn_end") console.log("Nova finished speaking");
+      if (msg.type === "turn_end") console.log("Ary finished speaking");
       if (msg.type === "session_end") {
         setSessionEnded(true);
         setIsTimerRunning(false);
@@ -151,11 +151,11 @@ function InterviewContent() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="font-display font-black text-4xl sm:text-5xl text-foreground leading-tight mb-2">
-            AI Mock{" "}
+            CogniHire{" "}
             <span className="text-gradient">Interview</span>
           </h1>
           <p className="font-body text-muted-foreground text-base">
-            Connect, start speaking, and let Nova guide you through the session.
+            Connect, start speaking, and let Ary guide you through the session.
           </p>
           {hasInterviewStarted && (
             <div className="mt-4">

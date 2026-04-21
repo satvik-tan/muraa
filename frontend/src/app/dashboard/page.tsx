@@ -170,7 +170,7 @@ function TranscriptViewer({ session }: { session: CandidateSession }) {
                     }`}
                   >
                     <span className="block text-[10px] font-semibold mb-1 opacity-60">
-                      {t.role === "nova" ? "Nova" : "Candidate"}
+                      {t.role === "nova" ? "Ary" : "Candidate"}
                     </span>
                     {t.content}
                   </div>

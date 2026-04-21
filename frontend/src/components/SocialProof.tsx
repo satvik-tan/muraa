@@ -1,5 +1,5 @@
 const stats = [
-  { value: "2,000+", label: "Companies using InterviewAI" },
+  { value: "2,000+", label: "Companies using CogniHire" },
   { value: "500K+", label: "Interviews conducted" },
   { value: "10x", label: "Faster than manual screening" },
   { value: "94%", label: "Hiring manager satisfaction" },
@@ -7,7 +7,7 @@ const stats = [
 
 const testimonials = [
   {
-    quote: "InterviewAI saved us 30+ hours per week on candidate screening. It's like having a tireless recruiting team that never sleeps.",
+    quote: "CogniHire saved us 30+ hours per week on candidate screening. It's like having a tireless recruiting team that never sleeps.",
     author: "Sarah Chen",
     role: "VP of People, TechCorp",
   },

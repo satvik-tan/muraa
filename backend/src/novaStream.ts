@@ -6,6 +6,33 @@ const encoder = new TextEncoder();
 // Signal is created fresh per session inside generateStream — see SessionSignal type
 export type SessionSignal = { resolve: () => void };
 
+export type JobPromptContext = {
+  title: string;
+  description: string;
+  companyName: string | null;
+  experienceLevel: string | null;
+  skills: string[];
+};
+
+type GenerateStreamOptions = {
+  jobContext?: JobPromptContext;
+};
+
+function buildSystemPrompt(jobContext?: JobPromptContext) {
+  const interviewRules =
+    "You are Ary, an AI interviewer. In your very first response, introduce yourself as Ary, briefly describe the role you are interviewing for, and then ask the first question. Ask exactly one concise question at a time and wait for the candidate response before asking the next question. Do not answer your own questions and do not invent candidate responses. If the candidate seems stuck, unsure, or asks for help, provide a short practical hint and then invite them to try again.";
+
+  if (!jobContext) {
+    return `${interviewRules} Start with personal background questions first: full name, current role, years of experience, primary tech stack, and target role. After collecting these basics, continue to relevant technical and behavioral questions.`;
+  }
+
+  const skillsList = jobContext.skills.length > 0 ? jobContext.skills.join(", ") : "Not specified";
+  const companyName = jobContext.companyName ?? "Not specified";
+  const experienceLevel = jobContext.experienceLevel ?? "Not specified";
+
+  return `${interviewRules} Use this role profile to tailor the interview:\n- Job title: ${jobContext.title}\n- Company: ${companyName}\n- Experience level: ${experienceLevel}\n- Required skills: ${skillsList}\n- Job description: ${jobContext.description}\nStart with a role-aware introduction, then ask progressively deeper technical and behavioral questions tied to this role.`;
+}
+
 function encodeEvent(event: object) {
   return {
     chunk: {
@@ -14,7 +41,12 @@ function encodeEvent(event: object) {
   };
 }
 
-export async function* generateStream(queue: AudioQueue, sessionSignal: SessionSignal) {
+export async function* generateStream(
+  queue: AudioQueue,
+  sessionSignal: SessionSignal,
+  options: GenerateStreamOptions = {},
+) {
+  const { jobContext } = options;
   const promptName = randomUUID();
   const systemContentName = randomUUID();
   const userTextContentName = randomUUID();
@@ -57,8 +89,7 @@ export async function* generateStream(queue: AudioQueue, sessionSignal: SessionS
     textInput: {
       promptName,
       contentName: systemContentName,
-      content:
-        "You are an interviewer conducting a live candidate interview. Ask exactly one concise question at a time and wait for the candidate reply before asking the next question. Do not answer your own questions and do not invent candidate responses. Start with personal background questions first: full name, current role, years of experience, primary tech stack, and target role. After collecting these basics, continue to role-relevant technical and behavioral questions.",
+      content: buildSystemPrompt(jobContext),
     },
   });
   yield encodeEvent({ contentEnd: { promptName, contentName: systemContentName } });

@@ -7,6 +7,14 @@ import { AudioQueue } from "./services/audioQueue.js";
 import { startNovaSession } from "./novaConnect.js";
 import { prisma } from "./services/prisma.js";
 
+type InterviewJobContext = {
+  title: string;
+  description: string;
+  companyName: string | null;
+  experienceLevel: string | null;
+  skills: string[];
+};
+
 const wss = new WebSocketServer({ port: 8080 });
 console.log("WebSocket server running on ws://localhost:8080");
 
@@ -22,6 +30,7 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
 
   const queue = new AudioQueue();
   let sessionId: string | undefined;
+  let jobContext: InterviewJobContext | undefined;
 
   // Create a DB session if a jobId was provided
   if (jobId) {
@@ -32,6 +41,15 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
         ws.close();
         return;
       }
+
+      jobContext = {
+        title: job.title,
+        description: job.description,
+        companyName: job.companyName,
+        experienceLevel: job.experienceLevel,
+        skills: job.skills,
+      };
+
       const session = await prisma.interviewSession.create({
         data: { jobId, candidateName, candidateEmail },
       });
@@ -45,7 +63,7 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
     }
   }
 
-  startNovaSession(ws, queue, sessionId).catch((err) => {
+  startNovaSession(ws, queue, { sessionId, jobContext }).catch((err) => {
     console.error("Nova session error:", err.message);
     ws.send(JSON.stringify({ type: "error", message: err.message }));
   });
