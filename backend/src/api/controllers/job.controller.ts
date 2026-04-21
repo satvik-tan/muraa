@@ -127,6 +127,60 @@ export const getJobByShareId = async (req: Request<ShareIdParams>, res: Response
   }
 };
 
+// POST /api/jobs/share/:shareId/candidates  — PUBLIC, no auth
+export const createCandidateSessionByShareId = async (
+  req: Request<ShareIdParams>,
+  res: Response
+): Promise<void> => {
+  try {
+    const candidateName =
+      typeof req.body?.candidateName === "string" ? req.body.candidateName.trim() : "";
+    const candidateEmail =
+      typeof req.body?.candidateEmail === "string" ? req.body.candidateEmail.trim() : "";
+
+    if (!candidateName || !candidateEmail) {
+      res.status(400).json({
+        success: false,
+        message: "candidateName and candidateEmail are required",
+      });
+      return;
+    }
+
+    const job = await prisma.job.findUnique({
+      where: { shareId: req.params.shareId },
+      select: { id: true, shareId: true },
+    });
+
+    if (!job) {
+      res.status(404).json({ success: false, message: "Job not found" });
+      return;
+    }
+
+    const session = await prisma.interviewSession.create({
+      data: {
+        jobId: job.id,
+        candidateName,
+        candidateEmail,
+      },
+      select: {
+        id: true,
+        jobId: true,
+        candidateName: true,
+        candidateEmail: true,
+        startedAt: true,
+      },
+    });
+
+    res.status(201).json({ success: true, data: { ...session, shareId: job.shareId } });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to create candidate session",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
 // GET /api/jobs/:id/candidates
 export const getJobCandidates = async (req: Request<JobIdParams>, res: Response): Promise<void> => {
   try {

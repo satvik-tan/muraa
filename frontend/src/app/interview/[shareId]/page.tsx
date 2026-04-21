@@ -190,19 +190,35 @@ export default function SharedInterviewPage() {
   }, [stopRecording, disconnect,uploadRecording,stop,interviewSessionId]);
 
   // Form submission — validate and transition to interview
-  function handleFormSubmit() {
+  async function handleFormSubmit() {
     setFormError("");
     if (!name.trim()) { setFormError("Please enter your name."); return; }
     if (!email.trim() || !email.includes("@")) { setFormError("Please enter a valid email."); return; }
-    if (!job) return;
+    if (!shareId) return;
 
-    const url =
-      `ws://localhost:8080?jobId=${encodeURIComponent(job.id)}` +
-      `&candidateName=${encodeURIComponent(name.trim())}` +
-      `&candidateEmail=${encodeURIComponent(email.trim())}`;
+    try {
+      const res = await fetch(`http://localhost:8000/api/jobs/share/${encodeURIComponent(shareId)}/candidates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateName: name.trim(),
+          candidateEmail: email.trim(),
+        }),
+      });
 
-    setWsUrl(url);
-    setPageState("ready");
+      const payload = await res.json();
+      if (!res.ok || !payload?.success || !payload?.data?.id) {
+        setFormError(payload?.message ?? "Failed to start interview. Please try again.");
+        return;
+      }
+
+      const url = `ws://localhost:8080?sessionId=${encodeURIComponent(payload.data.id)}`;
+      setInterviewSessionId(payload.data.id);
+      setWsUrl(url);
+      setPageState("ready");
+    } catch {
+      setFormError("Failed to start interview. Please try again.");
+    }
   }
 
   const handleStartRecording = useCallback(async () => {
