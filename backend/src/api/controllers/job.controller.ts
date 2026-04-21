@@ -9,6 +9,10 @@ async function getUserByStackId(stackUserId: string) {
   return prisma.user.findUnique({ where: { stackUserId } });
 }
 
+function isValidCandidateEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 // POST /api/jobs
 export const createJob = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -142,6 +146,14 @@ export const createCandidateSessionByShareId = async (
       res.status(400).json({
         success: false,
         message: "candidateName and candidateEmail are required",
+      });
+      return;
+    }
+
+    if (!isValidCandidateEmail(candidateEmail)) {
+      res.status(400).json({
+        success: false,
+        message: "candidateEmail must be a valid email address",
       });
       return;
     }

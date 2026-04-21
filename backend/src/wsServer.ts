@@ -24,7 +24,8 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
   // Parse query params from the WS URL
   // e.g. ws://localhost:8080?jobId=xxx&candidateName=yyy&candidateEmail=zzz
   const url = new URL(req.url ?? "/", "http://localhost:8080");
-  const jobId         = url.searchParams.get("jobId");
+  const jobIdParam = url.searchParams.get("jobId");
+  const jobId = typeof jobIdParam === "string" && jobIdParam.trim().length > 0 ? jobIdParam : null;
   const existingSessionId = url.searchParams.get("sessionId");
   const candidateName  = url.searchParams.get("candidateName") ?? "Anonymous";
   const candidateEmail = url.searchParams.get("candidateEmail") ?? "";

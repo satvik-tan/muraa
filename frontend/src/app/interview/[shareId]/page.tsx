@@ -209,18 +209,54 @@ export default function SharedInterviewPage() {
         }),
       });
 
-      const payload = await res.json();
-      if (!res.ok || !payload?.success || !payload?.data?.id) {
+      let payload: unknown = null;
+      const isJsonResponse = (res.headers.get("content-type") ?? "").includes("application/json");
+      if (isJsonResponse) {
+        try {
+          payload = await res.json();
+        } catch (error) {
+          console.error("Failed to parse candidate session response", error);
+        }
+      }
+
+      const messageFromPayload =
+        payload && typeof payload === "object" && "message" in payload && typeof payload.message === "string"
+          ? payload.message
+          : null;
+      const sessionIdFromPayload =
+        payload &&
+        typeof payload === "object" &&
+        "data" in payload &&
+        payload.data &&
+        typeof payload.data === "object" &&
+        "id" in payload.data &&
+        typeof payload.data.id === "string"
+          ? payload.data.id
+          : null;
+      const successFromPayload =
+        payload && typeof payload === "object" && "success" in payload && payload.success === true;
+
+      if (!res.ok) {
         const fallbackMessage =
           res.status >= 500
             ? "The server is currently unavailable. Please try again in a moment."
             : "Unable to start interview with the submitted details. Please review and retry.";
-        setFormError(payload?.message ?? fallbackMessage);
+        setFormError(messageFromPayload ?? fallbackMessage);
         return;
       }
 
-      const url = `${WS_BASE_URL}?sessionId=${encodeURIComponent(payload.data.id)}`;
-      setInterviewSessionId(payload.data.id);
+      if (!successFromPayload) {
+        setFormError(messageFromPayload ?? "Unable to start interview. Please try again.");
+        return;
+      }
+
+      if (!sessionIdFromPayload) {
+        setFormError("Interview setup is incomplete. Please refresh and try again.");
+        return;
+      }
+
+      const url = `${WS_BASE_URL}?sessionId=${encodeURIComponent(sessionIdFromPayload)}`;
+      setInterviewSessionId(sessionIdFromPayload);
       setWsUrl(url);
       setPageState("ready");
     } catch (error) {
