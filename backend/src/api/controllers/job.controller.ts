@@ -10,7 +10,8 @@ async function getUserByStackId(stackUserId: string) {
 }
 
 function isValidCandidateEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (email.includes("..")) return false;
+  return /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email);
 }
 
 // POST /api/jobs
