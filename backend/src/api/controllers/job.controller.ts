@@ -373,8 +373,14 @@ export const getJobApplications = async (req: Request<JobIdParams>, res: Respons
         user: { select: { id: true, name: true, email: true } },
         inmail: { select: { id: true, createdAt: true } },
       },
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+      orderBy: { createdAt: "desc" },
     });
+
+    const statusPriority: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
+    applications.sort(
+      (a: { status: string }, b: { status: string }) =>
+        (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
+    );
 
     res.status(200).json({ success: true, data: applications });
   } catch (error) {
