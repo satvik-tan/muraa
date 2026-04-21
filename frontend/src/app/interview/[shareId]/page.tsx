@@ -471,7 +471,12 @@ export default function SharedInterviewPage() {
                     placeholder="Why are you a strong fit for this role?"
                     value={applicationText}
                     onChange={(e) => setApplicationText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleFormSubmit()}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        handleFormSubmit();
+                      }
+                    }}
                   />
                 </div>
               )}

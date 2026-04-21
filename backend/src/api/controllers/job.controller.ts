@@ -376,10 +376,12 @@ export const getJobApplications = async (req: Request<JobIdParams>, res: Respons
       orderBy: { createdAt: "desc" },
     });
 
+    const UNKNOWN_STATUS_PRIORITY = 99;
     const statusPriority: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
     applications.sort(
       (a: { status: string }, b: { status: string }) =>
-        (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
+        (statusPriority[a.status] ?? UNKNOWN_STATUS_PRIORITY) -
+        (statusPriority[b.status] ?? UNKNOWN_STATUS_PRIORITY)
     );
 
     res.status(200).json({ success: true, data: applications });
