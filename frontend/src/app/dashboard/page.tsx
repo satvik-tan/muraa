@@ -299,13 +299,14 @@ function JobCard({
   onViewCandidates: (job: Job) => void;
 }) {
   const router = useRouter();
+  const interviewPath = `/interview/${job.shareId}`;
 
   const handleLaunch = () => {
-    router.push(`/interview/${job.shareId}`);
+    router.push(interviewPath);
   };
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/interview/${job.shareId}`;
+    const url = `${window.location.origin}${interviewPath}`;
     await navigator.clipboard.writeText(url);
     toast.success("Link copied to clipboard!");
   };
@@ -353,6 +354,12 @@ function JobCard({
       <div className="text-sm text-muted-foreground">
         <span className="font-semibold text-foreground">{job._count?.sessions ?? 0}</span> candidate
         {(job._count?.sessions ?? 0) !== 1 ? "s" : ""}
+      </div>
+
+      {/* Candidate link */}
+      <div className="text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">Candidate Link:</span>{" "}
+        <span className="font-mono">{interviewPath}</span>
       </div>
 
       {/* Actions */}
