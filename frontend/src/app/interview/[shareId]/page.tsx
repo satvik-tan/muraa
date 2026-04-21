@@ -165,8 +165,9 @@ export default function SharedInterviewPage() {
           return;
         }
 
-        if ((user as { displayName?: string | null }).displayName) {
-          setName((user as { displayName?: string | null }).displayName ?? "");
+        const profileName = (user as { displayName?: string | null }).displayName;
+        if (profileName) {
+          setName(profileName);
         }
 
         const { accessToken } = await user.getAuthJson();
@@ -483,7 +484,7 @@ export default function SharedInterviewPage() {
 
               {accessStatus === "pending" && (
                 <p className="text-sm text-muted-foreground">
-                  Your application was submitted. Interview access will be enabled after HR approval and InMail.
+                  Your application was submitted. Interview access will be enabled after HR approval and notification.
                 </p>
               )}
 

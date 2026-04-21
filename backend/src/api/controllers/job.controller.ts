@@ -373,16 +373,17 @@ export const getJobApplications = async (req: Request<JobIdParams>, res: Respons
         user: { select: { id: true, name: true, email: true } },
         inmail: { select: { id: true, createdAt: true } },
       },
-      orderBy: { createdAt: "desc" },
     });
 
     const UNKNOWN_STATUS_PRIORITY = 99;
     const statusPriority: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
-    applications.sort(
-      (a: { status: string }, b: { status: string }) =>
+    applications.sort((a: { status: string; createdAt: Date }, b: { status: string; createdAt: Date }) => {
+      const statusDelta =
         (statusPriority[a.status] ?? UNKNOWN_STATUS_PRIORITY) -
-        (statusPriority[b.status] ?? UNKNOWN_STATUS_PRIORITY)
-    );
+        (statusPriority[b.status] ?? UNKNOWN_STATUS_PRIORITY);
+      if (statusDelta !== 0) return statusDelta;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
 
     res.status(200).json({ success: true, data: applications });
   } catch (error) {
