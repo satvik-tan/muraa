@@ -3,6 +3,7 @@ import { prisma } from "../../services/prisma.js";
 
 type JobIdParams = { id: string };
 type ShareIdParams = { shareId: string };
+type SortableApplication = { status: string; createdAt: Date };
 
 /** Resolve the Stack Auth JWT subject to the DB User row */
 async function getUserByStackId(stackUserId: string) {
@@ -375,9 +376,9 @@ export const getJobApplications = async (req: Request<JobIdParams>, res: Respons
       },
     });
 
-    const UNKNOWN_STATUS_PRIORITY = 99;
+    const UNKNOWN_STATUS_PRIORITY = 99; // Keep unknown statuses after known statuses.
     const statusPriority: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
-    applications.sort((a: { status: string; createdAt: Date }, b: { status: string; createdAt: Date }) => {
+    applications.sort((a: SortableApplication, b: SortableApplication) => {
       const statusDelta =
         (statusPriority[a.status] ?? UNKNOWN_STATUS_PRIORITY) -
         (statusPriority[b.status] ?? UNKNOWN_STATUS_PRIORITY);
