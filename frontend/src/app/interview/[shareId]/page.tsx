@@ -17,6 +17,9 @@ import type { TranscriptEntry } from "@/components/TranscriptDisplay";
 import { useInterviewRecorder } from "@/hooks/useInterviewRecorder";
 import { useInterviewUpload } from "@/hooks/useInterviewUpload"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080";
+
 function upsertStreamingTranscript(
   prev: TranscriptEntry[],
   next: TranscriptEntry,
@@ -197,7 +200,7 @@ export default function SharedInterviewPage() {
     if (!shareId) return;
 
     try {
-      const res = await fetch(`http://localhost:8000/api/jobs/share/${encodeURIComponent(shareId)}/candidates`, {
+      const res = await fetch(`${API_BASE_URL}/api/jobs/share/${encodeURIComponent(shareId)}/candidates`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -212,11 +215,12 @@ export default function SharedInterviewPage() {
         return;
       }
 
-      const url = `ws://localhost:8080?sessionId=${encodeURIComponent(payload.data.id)}`;
+      const url = `${WS_BASE_URL}?sessionId=${encodeURIComponent(payload.data.id)}`;
       setInterviewSessionId(payload.data.id);
       setWsUrl(url);
       setPageState("ready");
-    } catch {
+    } catch (error) {
+      console.error("Failed to create candidate interview session", error);
       setFormError("Failed to start interview. Please try again.");
     }
   }

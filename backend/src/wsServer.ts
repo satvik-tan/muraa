@@ -53,6 +53,7 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
         return;
       }
 
+      // Keep this guard so mixed old/new clients cannot bind a session to a different job.
       if (jobId && existingSession.jobId !== jobId) {
         ws.send(JSON.stringify({ type: "error", message: "Session does not match the provided job" }));
         ws.close();
