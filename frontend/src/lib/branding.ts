@@ -23,7 +23,7 @@ const BRAND_CONFIG: Record<BrandKey, BrandConfig> = {
 };
 
 export function getBrandConfig(): BrandConfig {
-  const raw = (process.env.NEXT_PUBLIC_BRAND ?? "mura").trim().toLowerCase();
-  const key: BrandKey = raw === "cognihire" ? "cognihire" : "mura";
+  const raw = (process.env.NEXT_PUBLIC_BRAND ?? "cognihire").trim().toLowerCase();
+  const key: BrandKey = raw === "mura" ? "mura" : "cognihire";
   return BRAND_CONFIG[key];
 }

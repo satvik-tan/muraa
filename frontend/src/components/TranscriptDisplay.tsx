@@ -18,7 +18,7 @@ export function TranscriptDisplay({ messages, sessionEnded }: Props) {
 
   const handleDownload = useCallback(() => {
     const text = messages
-      .map((m) => `[${m.role === "ai" ? "Interviewer (Nova)" : "You"}]\n${m.text}`)
+      .map((m) => `[${m.role === "ai" ? "Ary" : "You"}]\n${m.text}`)
       .join("\n\n");
     const blob = new Blob([text], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -70,7 +70,7 @@ export function TranscriptDisplay({ messages, sessionEnded }: Props) {
                     : "bg-secondary text-secondary-foreground"
                 }`}
               >
-                {msg.role === "ai" ? "AI" : "Me"}
+                {msg.role === "ai" ? "Ary" : "Me"}
               </div>
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm font-body leading-relaxed ${

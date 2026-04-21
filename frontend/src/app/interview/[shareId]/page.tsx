@@ -144,7 +144,7 @@ export default function SharedInterviewPage() {
       if (msg.type === "audio") {
         playAudio(msg.audio, connectToNova)
       };
-      if (msg.type === "turn_end") console.log("Nova finished speaking");
+      if (msg.type === "turn_end") console.log("Ary finished speaking");
       if (msg.type === "session_end") {
         setSessionEnded(true);
         setIsTimerRunning(false);

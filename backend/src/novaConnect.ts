@@ -2,9 +2,15 @@ import { InvokeModelWithBidirectionalStreamCommand } from "@aws-sdk/client-bedro
 import { bedrockClient } from "./services/novaClient.js"
 import { generateStream } from "./novaStream.js";
 import type { SessionSignal } from "./novaStream.js";
+import type { JobPromptContext } from "./novaStream.js";
 import { AudioQueue } from "./services/audioQueue.js"
 import { WebSocket } from "ws";
 import { prisma } from "./services/prisma.js";
+
+type StartNovaSessionOptions = {
+  sessionId?: string;
+  jobContext?: JobPromptContext;
+};
 
 // Calculate text similarity using Jaccard index (0-1)
 function calculateSimilarity(a: string, b: string): number {
@@ -17,13 +23,19 @@ function calculateSimilarity(a: string, b: string): number {
   return union.size === 0 ? 0 : intersection.size / union.size;
 }
 
-export async function startNovaSession(ws: WebSocket, queue: AudioQueue, sessionId?: string) {
+export async function startNovaSession(
+  ws: WebSocket,
+  queue: AudioQueue,
+  options: StartNovaSessionOptions = {},
+) {
+  const { sessionId, jobContext } = options;
+
   // Fresh signal per session — avoids stale resolved promise on reconnect
   const sessionSignal: SessionSignal = { resolve: () => {} };
 
   const command = new InvokeModelWithBidirectionalStreamCommand({
     modelId: "amazon.nova-2-sonic-v1:0",
-    body: generateStream(queue, sessionSignal),
+    body: generateStream(queue, sessionSignal, { jobContext }),
   });
 
   const response = await bedrockClient.send(command);
