@@ -20,6 +20,11 @@ import { useInterviewUpload } from "@/hooks/useInterviewUpload"
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080";
 
+function isValidCandidateEmail(email: string): boolean {
+  if (email.includes("..")) return false;
+  return /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email);
+}
+
 function upsertStreamingTranscript(
   prev: TranscriptEntry[],
   next: TranscriptEntry,
@@ -196,7 +201,10 @@ export default function SharedInterviewPage() {
   async function handleFormSubmit() {
     setFormError("");
     if (!name.trim()) { setFormError("Please enter your name."); return; }
-    if (!email.trim() || !email.includes("@")) { setFormError("Please enter a valid email."); return; }
+    if (!email.trim() || !isValidCandidateEmail(email.trim())) {
+      setFormError("Please enter a valid email.");
+      return;
+    }
     if (!shareId) return;
 
     try {

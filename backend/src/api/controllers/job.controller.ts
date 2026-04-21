@@ -9,6 +9,11 @@ async function getUserByStackId(stackUserId: string) {
   return prisma.user.findUnique({ where: { stackUserId } });
 }
 
+/**
+ * Lightweight email validation for public candidate intake:
+ * - requires local@domain.tld shape (at least one dot in domain)
+ * - rejects consecutive dots
+ */
 function isValidCandidateEmail(email: string): boolean {
   if (email.includes("..")) return false;
   return /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email);
