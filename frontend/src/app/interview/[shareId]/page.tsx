@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useStackApp } from "@stackframe/stack";
 import { useNovaSocket } from "@/hooks/useNovaSocket";
 import { useMicRecorder } from "@/hooks/useMicRecorder";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -11,11 +13,40 @@ import { TranscriptDisplay } from "@/components/TranscriptDisplay";
 import Navbar from "@/components/Navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import type { NovaMessage } from "@/hooks/useNovaSocket";
 import type { TranscriptEntry } from "@/components/TranscriptDisplay";
 import { useInterviewRecorder } from "@/hooks/useInterviewRecorder";
 import { useInterviewUpload } from "@/hooks/useInterviewUpload"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080";
+
+function parseCandidateSessionResponse(responseData: unknown): {
+  success: boolean;
+  message: string | null;
+  sessionId: string | null;
+} {
+  if (!responseData || typeof responseData !== "object") {
+    return { success: false, message: null, sessionId: null };
+  }
+
+  const message =
+    "message" in responseData && typeof responseData.message === "string"
+      ? responseData.message
+      : null;
+  const sessionId =
+    "data" in responseData &&
+    responseData.data &&
+    typeof responseData.data === "object" &&
+    "id" in responseData.data &&
+    typeof responseData.data.id === "string"
+      ? responseData.data.id
+      : null;
+  const success = "success" in responseData && responseData.success === true;
+
+  return { success, message, sessionId };
+}
 
 function upsertStreamingTranscript(
   prev: TranscriptEntry[],
@@ -81,20 +112,23 @@ interface JobPublic {
 }
 
 type PageState = "loading" | "form" | "ready" | "error";
+type AccessStatus = "not_authenticated" | "not_applied" | "pending" | "approved" | "rejected";
 
 export default function SharedInterviewPage() {
   const params = useParams<{ shareId: string }>();
+  const stackApp = useStackApp();
 
   const [pageState, setPageState] = useState<PageState>("loading");
   const [job, setJob] = useState<JobPublic | null>(null);
 
-  // Candidate info from the form
+  // Candidate info from authenticated profile + submitted application
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [applicationText, setApplicationText] = useState("");
   const [formError, setFormError] = useState("");
+  const [accessStatus, setAccessStatus] = useState<AccessStatus>("not_authenticated");
 
   // WS URL is set after form submission
-  const [wsUrl, setWsUrl] = useState("ws://localhost:8080");
+  const [wsUrl, setWsUrl] = useState(WS_BASE_URL);
 
   const [messages, setMessages] = useState<TranscriptEntry[]>([]);
   const [sessionEnded, setSessionEnded] = useState(false);
@@ -111,15 +145,67 @@ export default function SharedInterviewPage() {
 
   // Fetch job info on mount
   useEffect(() => {
-    if (!params.shareId) return;
-    fetch(`http://localhost:8000/api/jobs/share/${params.shareId}`)
+    if (!shareId) return;
+    fetch(`${API_BASE_URL}/api/jobs/share/${shareId}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) { setJob(data.data); setPageState("form"); }
         else setPageState("error");
       })
       .catch(() => setPageState("error"));
-  }, [params.shareId]);
+  }, [shareId]);
+
+  useEffect(() => {
+    if (!shareId) return;
+    const resolveAccess = async () => {
+      try {
+        const user = await stackApp.getUser();
+        if (!user) {
+          setAccessStatus("not_authenticated");
+          return;
+        }
+
+        const profileName = (user as { displayName?: string | null }).displayName;
+        if (profileName) {
+          setName(profileName);
+        }
+
+        const { accessToken } = await user.getAuthJson();
+        if (!accessToken) {
+          setAccessStatus("not_authenticated");
+          return;
+        }
+
+        await fetch(`${API_BASE_URL}/api/user/sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-stack-access-token": accessToken,
+          },
+        });
+
+        const accessRes = await fetch(`${API_BASE_URL}/api/jobs/share/${encodeURIComponent(shareId)}/access`, {
+          headers: { "x-stack-access-token": accessToken },
+        });
+
+        if (!accessRes.ok) {
+          setAccessStatus("not_applied");
+          return;
+        }
+
+        const accessPayload = await accessRes.json();
+        const nextStatus =
+          typeof accessPayload?.data?.applicationStatus === "string"
+            ? accessPayload.data.applicationStatus
+            : "not_applied";
+        setAccessStatus(nextStatus);
+      } catch (error) {
+        console.error("Failed to resolve interview access", error);
+        setAccessStatus("not_authenticated");
+      }
+    };
+    resolveAccess();
+  }, [shareId, stackApp]);
 
   const { initAudio, playAudio, stopAudio, getAudioContext } = useAudioPlayer();
 
@@ -189,20 +275,111 @@ export default function SharedInterviewPage() {
     }
   }, [stopRecording, disconnect,uploadRecording,stop,interviewSessionId]);
 
-  // Form submission — validate and transition to interview
-  function handleFormSubmit() {
+  // Application submission
+  async function handleFormSubmit() {
     setFormError("");
-    if (!name.trim()) { setFormError("Please enter your name."); return; }
-    if (!email.trim() || !email.includes("@")) { setFormError("Please enter a valid email."); return; }
-    if (!job) return;
+    if (!shareId) return;
+    if (accessStatus === "not_authenticated") {
+      setFormError("Please log in to continue.");
+      return;
+    }
+    if (!applicationText.trim()) {
+      setFormError("Please enter your application before requesting access.");
+      return;
+    }
 
-    const url =
-      `ws://localhost:8080?jobId=${encodeURIComponent(job.id)}` +
-      `&candidateName=${encodeURIComponent(name.trim())}` +
-      `&candidateEmail=${encodeURIComponent(email.trim())}`;
+    try {
+      const user = await stackApp.getUser();
+      if (!user) {
+        setAccessStatus("not_authenticated");
+        setFormError("Please log in to continue.");
+        return;
+      }
+      const { accessToken } = await user.getAuthJson();
+      if (!accessToken) {
+        setAccessStatus("not_authenticated");
+        setFormError("Please log in to continue.");
+        return;
+      }
 
-    setWsUrl(url);
-    setPageState("ready");
+      const res = await fetch(`${API_BASE_URL}/api/jobs/share/${encodeURIComponent(shareId)}/apply`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-stack-access-token": accessToken,
+        },
+        body: JSON.stringify({
+          applicationText: applicationText.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        setFormError(payload?.message ?? "Failed to submit application. Please try again.");
+        return;
+      }
+
+      setAccessStatus("pending");
+      setApplicationText("");
+    } catch (error) {
+      console.error("Failed to submit application", error);
+      setFormError("Failed to submit application. Please try again.");
+    }
+  }
+
+  async function handleStartInterview() {
+    setFormError("");
+    if (!shareId) return;
+    try {
+      const user = await stackApp.getUser();
+      if (!user) {
+        setAccessStatus("not_authenticated");
+        setFormError("Please log in to continue.");
+        return;
+      }
+      const { accessToken } = await user.getAuthJson();
+      if (!accessToken) {
+        setAccessStatus("not_authenticated");
+        setFormError("Please log in to continue.");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/jobs/share/${encodeURIComponent(shareId)}/candidates`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-stack-access-token": accessToken,
+        },
+      });
+
+      let responseData: unknown;
+      const isJsonResponse = (res.headers.get("content-type") ?? "").includes("application/json");
+      if (isJsonResponse) {
+        try {
+          responseData = await res.json();
+        } catch (error) {
+          console.error("Failed to parse candidate session response", error);
+        }
+      }
+
+      const parsedResponse = parseCandidateSessionResponse(responseData);
+      if (!res.ok) {
+        setFormError(parsedResponse.message ?? "Unable to start interview right now.");
+        return;
+      }
+
+      if (!parsedResponse.success || !parsedResponse.sessionId) {
+        setFormError(parsedResponse.message ?? "Interview setup is incomplete. Please try again.");
+        return;
+      }
+
+      const url = `${WS_BASE_URL}?sessionId=${encodeURIComponent(parsedResponse.sessionId)}`;
+      setInterviewSessionId(parsedResponse.sessionId);
+      setWsUrl(url);
+      setPageState("ready");
+    } catch (error) {
+      console.error("Failed to create candidate interview session", error);
+      setFormError("Failed to start interview. Please try again.");
+    }
   }
 
   const handleStartRecording = useCallback(async () => {
@@ -278,33 +455,58 @@ export default function SharedInterviewPage() {
               Before we begin
             </h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Enter your details so the recruiter can identify your submission.
+              You must log in and submit your application before HR can activate this interview link for your account.
             </p>
 
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Your name</label>
-                <Input
-                  placeholder="Jane Smith"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleFormSubmit()}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Email address</label>
-                <Input
-                  type="email"
-                  placeholder="jane@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleFormSubmit()}
-                />
-              </div>
+              {accessStatus === "not_authenticated" && (
+                <Button asChild className="w-full">
+                  <Link href="/handler/sign-in">Log in to continue</Link>
+                </Button>
+              )}
+
+              {accessStatus !== "not_authenticated" && accessStatus !== "approved" && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium">Application</label>
+                  <Textarea
+                    placeholder="Why are you a strong fit for this role?"
+                    value={applicationText}
+                    onChange={(e) => setApplicationText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        handleFormSubmit();
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              {accessStatus === "pending" && (
+                <p className="text-sm text-muted-foreground">
+                  Your application was submitted. Interview access will be enabled after HR approval and notification.
+                </p>
+              )}
+
+              {accessStatus === "rejected" && (
+                <p className="text-sm text-destructive">
+                  Your previous application was rejected. Submit a new application to request review again.
+                </p>
+              )}
+
               {formError && <p className="text-sm text-destructive">{formError}</p>}
-              <Button className="w-full mt-2" onClick={handleFormSubmit}>
-                Start Interview
-              </Button>
+
+              {accessStatus !== "not_authenticated" && accessStatus !== "approved" && (
+                <Button className="w-full mt-2" onClick={handleFormSubmit}>
+                  Submit Application
+                </Button>
+              )}
+
+              {accessStatus === "approved" && (
+                <Button className="w-full mt-2" onClick={handleStartInterview}>
+                  Start Interview
+                </Button>
+              )}
             </div>
           </div>
         </main>
@@ -334,7 +536,7 @@ export default function SharedInterviewPage() {
             <p className="text-muted-foreground text-base mb-2">{job.companyName}</p>
           )}
           <p className="text-muted-foreground text-sm">
-            Interviewing as <span className="font-medium text-foreground">{name}</span>
+            Interviewing as <span className="font-medium text-foreground">{name?.trim() || "Unknown"}</span>
           </p>
           {hasInterviewStarted && (
             <div className="mt-4">

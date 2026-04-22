@@ -5,7 +5,15 @@ import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useUserSync } from "@/hooks/useUserSync";
-import { useJobs, useJobCandidates, type Job, type CandidateSession, type CreateJobInput } from "@/hooks/useJobs";
+import {
+  useJobs,
+  useJobCandidates,
+  useJobApplications,
+  useApproveJobApplication,
+  type Job,
+  type CandidateSession,
+  type CreateJobInput,
+} from "@/hooks/useJobs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -233,6 +241,8 @@ function CandidatesDialog({
   onClose: () => void;
 }) {
   const { data: candidates, isLoading } = useJobCandidates(jobId);
+  const { data: applications, isLoading: isLoadingApplications } = useJobApplications(jobId);
+  const approveApplication = useApproveJobApplication();
 
   return (
     <Dialog open={!!jobId} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -242,6 +252,71 @@ function CandidatesDialog({
             Candidates — {jobTitle}
           </DialogTitle>
         </DialogHeader>
+        <div className="mb-6">
+          <h3 className="font-semibold text-sm mb-2">Applications</h3>
+          {isLoadingApplications ? (
+            <p className="text-sm text-muted-foreground py-2">Loading applications…</p>
+          ) : !applications || applications.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">No applications submitted yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Application</TableHead>
+                  <TableHead>InMail</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {applications.map((application) => (
+                  <TableRow key={application.id}>
+                    <TableCell className="font-medium">{application.user.name ?? "—"}</TableCell>
+                    <TableCell>{application.user.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={application.status === "approved" ? "default" : "secondary"}>
+                        {application.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-[280px] truncate" title={application.applicationText}>
+                      {application.applicationText}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {application.inmail ? "Sent" : "Not sent"}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={application.status === "approved" || approveApplication.isPending || !jobId}
+                        onClick={() => {
+                          if (!jobId) return;
+                          approveApplication.mutate(
+                            { jobId, applicationId: application.id },
+                            {
+                              onSuccess: () => {
+                                toast.success("Application approved. InMail sent.");
+                              },
+                              onError: () => {
+                                toast.error("Failed to approve application.");
+                              },
+                            }
+                          );
+                        }}
+                      >
+                        Approve
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+
+        <h3 className="font-semibold text-sm mb-2">Interview Sessions</h3>
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-4">Loading…</p>
         ) : !candidates || candidates.length === 0 ? (
@@ -299,13 +374,14 @@ function JobCard({
   onViewCandidates: (job: Job) => void;
 }) {
   const router = useRouter();
+  const interviewPath = `/interview/${job.shareId}`;
 
   const handleLaunch = () => {
-    router.push(`/interview/${job.shareId}`);
+    router.push(interviewPath);
   };
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/interview/${job.shareId}`;
+    const url = `${window.location.origin}${interviewPath}`;
     await navigator.clipboard.writeText(url);
     toast.success("Link copied to clipboard!");
   };
@@ -353,6 +429,12 @@ function JobCard({
       <div className="text-sm text-muted-foreground">
         <span className="font-semibold text-foreground">{job._count?.sessions ?? 0}</span> candidate
         {(job._count?.sessions ?? 0) !== 1 ? "s" : ""}
+      </div>
+
+      {/* Candidate link */}
+      <div className="text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">Candidate Link:</span>{" "}
+        <span className="font-mono">{interviewPath}</span>
       </div>
 
       {/* Actions */}

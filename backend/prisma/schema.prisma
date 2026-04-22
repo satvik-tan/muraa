@@ -15,8 +15,10 @@ model User {
   createdAt   DateTime @default(now())
   stackUserId String   @unique
 
-  jobs     Job[]
-  sessions InterviewSession[]
+  jobs         Job[]
+  sessions     InterviewSession[]
+  applications JobApplication[]
+  inmail       InMail[]
 }
 
 model Job {
@@ -30,8 +32,10 @@ model Job {
   shareId         String   @unique @default(uuid())
   createdAt       DateTime @default(now())
 
-  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions InterviewSession[]
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions     InterviewSession[]
+  applications JobApplication[]
+  inmail       InMail[]
 
   @@index([userId])
 }
@@ -67,7 +71,49 @@ model Transcript {
   @@index([sessionId])
 }
 
+model JobApplication {
+  id              String            @id @default(uuid())
+  userId          String
+  jobId           String
+  applicationText String
+  status          ApplicationStatus @default(pending)
+  createdAt       DateTime          @default(now())
+  approvedAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  inmail InMail?
+
+  @@unique([jobId, userId])
+  @@index([userId])
+  @@index([jobId])
+}
+
+model InMail {
+  id            String   @id @default(uuid())
+  userId        String
+  jobId         String
+  applicationId String   @unique
+  subject       String
+  body          String
+  createdAt     DateTime @default(now())
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job         Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([jobId])
+}
+
 enum Role {
   user
   nova
+}
+
+enum ApplicationStatus {
+  pending
+  approved
+  rejected
 }

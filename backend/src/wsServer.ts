@@ -24,7 +24,10 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
   // Parse query params from the WS URL
   // e.g. ws://localhost:8080?jobId=xxx&candidateName=yyy&candidateEmail=zzz
   const url = new URL(req.url ?? "/", "http://localhost:8080");
-  const jobId         = url.searchParams.get("jobId");
+  const jobIdParam = url.searchParams.get("jobId");
+  const sessionIdParam = url.searchParams.get("sessionId");
+  const jobId = jobIdParam && jobIdParam.trim().length > 0 ? jobIdParam : null;
+  const existingSessionId = sessionIdParam && sessionIdParam.trim().length > 0 ? sessionIdParam : null;
   const candidateName  = url.searchParams.get("candidateName") ?? "Anonymous";
   const candidateEmail = url.searchParams.get("candidateEmail") ?? "";
 
@@ -32,8 +35,52 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
   let sessionId: string | undefined;
   let jobContext: InterviewJobContext | undefined;
 
-  // Create a DB session if a jobId was provided
-  if (jobId) {
+  // Reuse an already-created session when provided by the API.
+  if (existingSessionId) {
+    try {
+      const existingSession = await prisma.interviewSession.findUnique({
+        where: { id: existingSessionId },
+        include: { job: true },
+      });
+
+      if (!existingSession) {
+        ws.send(JSON.stringify({ type: "error", message: "Interview session not found" }));
+        ws.close();
+        return;
+      }
+
+      if (existingSession.isCompleted) {
+        ws.send(JSON.stringify({ type: "error", message: "Interview session is already completed" }));
+        ws.close();
+        return;
+      }
+
+      // Prevent mixed legacy/new clients from pairing a pre-created session (sessionId)
+      // with a different legacy jobId, which could bind interview traffic to the wrong job.
+      if (jobId && existingSession.jobId !== jobId) {
+        ws.send(JSON.stringify({ type: "error", message: "Session does not match the provided job" }));
+        ws.close();
+        return;
+      }
+
+      jobContext = {
+        title: existingSession.job.title,
+        description: existingSession.job.description,
+        companyName: existingSession.job.companyName,
+        experienceLevel: existingSession.job.experienceLevel,
+        skills: existingSession.job.skills,
+      };
+
+      sessionId = existingSession.id;
+      ws.send(JSON.stringify({ type: "session_created", sessionId }));
+    } catch (err) {
+      console.error("Failed to load interview session:", err);
+      ws.send(JSON.stringify({ type: "error", message: "Failed to load session" }));
+      ws.close();
+      return;
+    }
+  } else if (jobId) {
+    // Backward compatibility: create session via WS if no pre-created sessionId is provided.
     try {
       const job = await prisma.job.findUnique({ where: { id: jobId } });
       if (!job) {

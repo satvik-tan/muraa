@@ -66,6 +66,25 @@ export interface CandidateSession {
   transcript: TranscriptRow[];
 }
 
+export interface JobApplication {
+  id: string;
+  userId: string;
+  jobId: string;
+  applicationText: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  approvedAt: string | null;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  inmail: {
+    id: string;
+    createdAt: string;
+  } | null;
+}
+
 export function useJobs() {
   const getToken = useGetToken();
   const qc = useQueryClient();
@@ -111,6 +130,43 @@ export function useJobCandidates(jobId: string | null) {
       const token = await getToken();
       const data = await authedFetch(`${API}/api/jobs/${jobId}/candidates`, token);
       return data.data;
+    },
+  });
+}
+
+export function useJobApplications(jobId: string | null) {
+  const getToken = useGetToken();
+
+  return useQuery<JobApplication[]>({
+    queryKey: ["applications", jobId],
+    enabled: !!jobId,
+    queryFn: async () => {
+      const token = await getToken();
+      const data = await authedFetch(`${API}/api/jobs/${jobId}/applications`, token);
+      return data.data;
+    },
+  });
+}
+
+export function useApproveJobApplication() {
+  const getToken = useGetToken();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      jobId,
+      applicationId,
+    }: {
+      jobId: string;
+      applicationId: string;
+    }) => {
+      const token = await getToken();
+      return authedFetch(`${API}/api/jobs/${jobId}/applications/${applicationId}/approve`, token, {
+        method: "POST",
+      });
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["applications", variables.jobId] });
     },
   });
 }
