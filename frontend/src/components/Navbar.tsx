@@ -1,9 +1,29 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useStackApp } from "@stackframe/stack";
 import { Button } from "@/components/ui/button";
 import { getBrandConfig } from "@/lib/branding";
 
 const Navbar = () => {
   const brand = getBrandConfig();
+  const stackApp = useStackApp();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveAuthState = async () => {
+      const user = await stackApp.getUser();
+      if (isMounted) setIsAuthenticated(Boolean(user));
+    };
+
+    void resolveAuthState();
+    return () => {
+      isMounted = false;
+    };
+  }, [stackApp]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -20,12 +40,20 @@ const Navbar = () => {
           <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
         </div>
         <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link href="/handler/sign-in">Log in</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/handler/sign-up">Start free</Link>
-          </Button>
+          {isAuthenticated ? (
+            <Button asChild size="sm">
+              <Link href="/dashboard">Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                <Link href="/handler/sign-in">Log in</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/handler/sign-up">Start free</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </nav>

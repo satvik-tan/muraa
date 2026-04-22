@@ -10,10 +10,34 @@ async function getUserByStackId(stackUserId: string) {
   return prisma.user.findUnique({ where: { stackUserId } });
 }
 
+async function hasHrProfile(userId: string) {
+  const hrProfile = await prisma.hRModel.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  return Boolean(hrProfile);
+}
+
+async function ensureCandidateProfile(userId: string) {
+  await prisma.candidatesModel.upsert({
+    where: { userId },
+    update: {},
+    create: { userId },
+  });
+}
+
+async function hasCandidateProfile(userId: string) {
+  const candidateProfile = await prisma.candidatesModel.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  return Boolean(candidateProfile);
+}
+
 async function ensureUserFromToken(req: Request) {
   const { sub: stackUserId, email, name } = req.user!;
   if (!email) return null;
-  return prisma.user.upsert({
+  const user = await prisma.user.upsert({
     where: { stackUserId },
     update: { email, name: name ?? null },
     create: {
@@ -23,6 +47,8 @@ async function ensureUserFromToken(req: Request) {
       createdAt: new Date(),
     },
   });
+  await ensureCandidateProfile(user.id);
+  return user;
 }
 
 // POST /api/jobs
@@ -31,6 +57,11 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
     const user = await getUserByStackId(req.user!.sub);
     if (!user) {
       res.status(404).json({ success: false, message: "User not found — call /api/user/sync first" });
+      return;
+    }
+
+    if (!(await hasHrProfile(user.id))) {
+      res.status(403).json({ success: false, message: "Only HR users can create jobs" });
       return;
     }
 
@@ -155,6 +186,16 @@ export const createCandidateSessionByShareId = async (
       return;
     }
 
+    if (await hasHrProfile(user.id)) {
+      res.status(403).json({ success: false, message: "HR users cannot access candidate interview links" });
+      return;
+    }
+
+    if (!(await hasCandidateProfile(user.id))) {
+      res.status(403).json({ success: false, message: "Only candidates can access interview links" });
+      return;
+    }
+
     const job = await prisma.job.findUnique({
       where: { shareId: req.params.shareId },
       select: { id: true, shareId: true },
@@ -219,6 +260,16 @@ export const applyToJobByShareId = async (req: Request<ShareIdParams>, res: Resp
       return;
     }
 
+    if (await hasHrProfile(user.id)) {
+      res.status(403).json({ success: false, message: "HR users cannot apply for jobs" });
+      return;
+    }
+
+    if (!(await hasCandidateProfile(user.id))) {
+      res.status(403).json({ success: false, message: "Only candidates can apply for jobs" });
+      return;
+    }
+
     const applicationText =
       typeof req.body?.applicationText === "string" ? req.body.applicationText.trim() : "";
     if (!applicationText) {
@@ -280,6 +331,16 @@ export const getShareLinkAccessByShareId = async (req: Request<ShareIdParams>, r
     const user = await ensureUserFromToken(req);
     if (!user) {
       res.status(400).json({ success: false, message: "Authenticated user email is required" });
+      return;
+    }
+
+    if (await hasHrProfile(user.id)) {
+      res.status(403).json({ success: false, message: "HR users cannot access candidate interview links" });
+      return;
+    }
+
+    if (!(await hasCandidateProfile(user.id))) {
+      res.status(403).json({ success: false, message: "Only candidates can access interview links" });
       return;
     }
 
@@ -442,14 +503,14 @@ export const approveJobApplication = async (
       where: { applicationId: application.id },
       update: {
         subject: `Interview access granted — ${application.job.title}`,
-        body: `You have been approved for ${application.job.title}. You can now use the interview link to start your interview.`,
+        body: `You have been approved for ${application.job.title}. Start your interview at /interview/${application.job.shareId}.`,
       },
       create: {
         userId: application.userId,
         jobId: application.jobId,
         applicationId: application.id,
         subject: `Interview access granted — ${application.job.title}`,
-        body: `You have been approved for ${application.job.title}. You can now use the interview link to start your interview.`,
+        body: `You have been approved for ${application.job.title}. Start your interview at /interview/${application.job.shareId}.`,
       },
     });
 

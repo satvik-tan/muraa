@@ -15,10 +15,32 @@ model User {
   createdAt   DateTime @default(now())
   stackUserId String   @unique
 
-  jobs         Job[]
-  sessions     InterviewSession[]
-  applications JobApplication[]
-  inmail       InMail[]
+  hrModel          HRModel?
+  candidatesModel  CandidatesModel?
+  jobs             Job[]
+  sessions         InterviewSession[]
+  applications     JobApplication[]
+  inmail           InMail[]
+}
+
+model HRModel {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model CandidatesModel {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Job {
