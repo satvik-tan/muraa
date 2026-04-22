@@ -18,14 +18,6 @@ async function hasHrProfile(userId: string) {
   return Boolean(hrProfile);
 }
 
-async function ensureCandidateProfile(userId: string) {
-  await prisma.candidatesModel.upsert({
-    where: { userId },
-    update: {},
-    create: { userId },
-  });
-}
-
 async function hasCandidateProfile(userId: string) {
   const candidateProfile = await prisma.candidatesModel.findUnique({
     where: { userId },
@@ -47,7 +39,6 @@ async function ensureUserFromToken(req: Request) {
       createdAt: new Date(),
     },
   });
-  await ensureCandidateProfile(user.id);
   return user;
 }
 
