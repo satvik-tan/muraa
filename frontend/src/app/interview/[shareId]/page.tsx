@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useNovaSocket } from "@/hooks/useNovaSocket";
 import { useMicRecorder } from "@/hooks/useMicRecorder";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -81,9 +82,11 @@ interface JobPublic {
 }
 
 type PageState = "loading" | "form" | "ready" | "error";
+type UploadState = "idle" | "uploading" | "uploaded" | "redirecting" | "error";
 
 export default function SharedInterviewPage() {
   const params = useParams<{ shareId: string }>();
+  const router = useRouter();
 
   const [pageState, setPageState] = useState<PageState>("loading");
   const [job, setJob] = useState<JobPublic | null>(null);
@@ -102,8 +105,8 @@ export default function SharedInterviewPage() {
   const [hasInterviewStarted, setHasInterviewStarted] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-
-  const shareId = Array.isArray(params.shareId) ? params.shareId[0] : params.shareId
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { start, connectToNova, stop } = useInterviewRecorder()
   const { uploadRecording } = useInterviewUpload()
@@ -163,7 +166,7 @@ export default function SharedInterviewPage() {
       stopAudio();
       disconnect();
     };
-  }, []);
+  }, [disconnect, stopAudio, stopRecording]);
 
   const handleConnect = useCallback(async () => {
     initAudio();
@@ -175,19 +178,32 @@ export default function SharedInterviewPage() {
   }, [initAudio, connect]);
 
   const handleDisconnect = useCallback(async () => {
+    if (uploadState !== "idle") return;
+
+    setUploadError(null);
+    setUploadState("uploading");
     stopRecording();
     setIsTimerRunning(false);
+    setSessionEnded(true);
+    stopAudio();
     disconnect();
+
     try {
-      const blob = await stop()
+      const blob = await stop();
       if (interviewSessionId) {
         await uploadRecording(interviewSessionId, blob);
-        console.log("Recording uploaded successfully");
       }
+
+      setUploadState("uploaded");
+      window.setTimeout(() => {
+        setUploadState("redirecting");
+        router.replace("/dashboard");
+      }, 900);
     } catch (error) {
-      console.error("Upload failed", error);
+      setUploadState("error");
+      setUploadError(error instanceof Error ? error.message : "Upload failed");
     }
-  }, [stopRecording, disconnect,uploadRecording,stop,interviewSessionId]);
+  }, [disconnect, interviewSessionId, router, stop, stopAudio, stopRecording, uploadRecording, uploadState]);
 
   // Form submission — validate and transition to interview
   function handleFormSubmit() {
@@ -344,22 +360,67 @@ export default function SharedInterviewPage() {
         </div>
 
         {/* Interview UI */}
-        <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 items-start">
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <h2 className="font-display font-bold text-xl text-foreground mb-5">Controls</h2>
-            <InterviewControls
-              status={status}
-              isRecording={isRecording}
-              onConnect={handleConnect}
-              onDisconnect={handleDisconnect}
-              onStartRecording={handleStartRecording}
-              onStopRecording={stopRecording}
-            />
+        <div className="relative">
+          <div className={`grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 items-start transition-opacity duration-300 ${uploadState === "idle" ? "" : "opacity-35 pointer-events-none"}`}>
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <h2 className="font-display font-bold text-xl text-foreground mb-5">Controls</h2>
+              <InterviewControls
+                status={status}
+                isRecording={isRecording}
+                disabled={uploadState !== "idle"}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+                onStartRecording={handleStartRecording}
+                onStopRecording={stopRecording}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <TranscriptDisplay messages={messages} sessionEnded={sessionEnded} />
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <TranscriptDisplay messages={messages} sessionEnded={sessionEnded} />
-          </div>
+          {uploadState !== "idle" && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl border border-border bg-background/85 p-6 backdrop-blur-sm">
+              <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-lg">
+                {uploadState === "error" ? (
+                  <>
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15 text-destructive">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 9v4" />
+                        <path d="M12 17h.01" />
+                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                      </svg>
+                    </div>
+                    <h3 className="font-display text-2xl font-bold text-foreground">Upload failed</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">{uploadError ?? "We couldn't upload the interview recording."}</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      {uploadState === "uploaded" || uploadState === "redirecting" ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      ) : (
+                        <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                        </svg>
+                      )}
+                    </div>
+                    <h3 className="font-display text-2xl font-bold text-foreground">
+                      {uploadState === "uploaded" || uploadState === "redirecting" ? "Interview uploaded" : "Uploading interview…"}
+                    </h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {uploadState === "uploaded" || uploadState === "redirecting"
+                        ? "Your interview recording is saved. Redirecting you back to the dashboard."
+                        : "Please wait while we save your interview recording."}
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

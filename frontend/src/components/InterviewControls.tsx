@@ -25,6 +25,7 @@ function StatusBadge({ status }: StatusBadgeProps) {
 type Props = {
   status: string;
   isRecording: boolean;
+  disabled?: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
   onStartRecording: () => void;
@@ -34,6 +35,7 @@ type Props = {
 export function InterviewControls({
   status,
   isRecording,
+  disabled = false,
   onConnect,
   onDisconnect,
   onStartRecording,
@@ -50,14 +52,14 @@ export function InterviewControls({
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={onConnect}
-            disabled={status !== "idle"}
+            disabled={disabled || status !== "idle"}
             className="flex items-center justify-center gap-2 rounded-full py-2.5 px-4 text-sm font-body font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Connect
           </button>
           <button
             onClick={onDisconnect}
-            disabled={status === "idle"}
+            disabled={disabled || status === "idle"}
             className="flex items-center justify-center gap-2 rounded-full py-2.5 px-4 text-sm font-body font-semibold border border-border text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Disconnect
@@ -66,7 +68,7 @@ export function InterviewControls({
 
         <button
           onClick={onStartRecording}
-          disabled={isRecording || status !== "connected"}
+          disabled={disabled || isRecording || status !== "connected"}
           className="flex items-center justify-center gap-2 w-full rounded-full py-2.5 px-4 text-sm font-body font-semibold bg-secondary text-secondary-foreground hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isRecording ? (
@@ -89,7 +91,7 @@ export function InterviewControls({
 
         <button
           onClick={onStopRecording}
-          disabled={!isRecording}
+          disabled={disabled || !isRecording}
           className="flex items-center justify-center gap-2 w-full rounded-full py-2.5 px-4 text-sm font-body font-semibold border border-border text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Stop Speaking
