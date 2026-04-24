@@ -7,6 +7,7 @@ import interviewRouter from './api/routes/interview.routes.js';
 import userRouter from './api/routes/user.routes.js';
 import jobRouter from './api/routes/job.routes.js';
 import uploadRouter from './api/routes/upload.routes.js'
+import applicationRouter from './api/routes/application.routes.js'
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -42,6 +43,8 @@ app.use('/api/user', userRouter);
 app.use('/api/jobs', jobRouter);
 
 app.use('/api/upload',uploadRouter)
+
+app.use('/api/applications', applicationRouter)
 
 // 404 fallback (log for debugging)
 app.use((req, res) => {

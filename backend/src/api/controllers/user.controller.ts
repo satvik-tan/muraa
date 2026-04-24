@@ -1,5 +1,14 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../services/prisma.js";
+import { z } from "zod";
+
+const updateRoleSchema = z.object({
+  role: z.enum(["CANDIDATE", "HR"]),
+});
+
+async function getUserByStackId(stackUserId: string) {
+  return prisma.user.findUnique({ where: { stackUserId } });
+}
 
 /**
  * POST /api/user/sync
@@ -36,6 +45,7 @@ export const syncUser = async (req: Request, res: Response): Promise<void> => {
         stackUserId,
         email,
         name: name ?? null,
+        hasCompletedRoleOnboarding: false,
         createdAt: new Date(),
       },
     });
@@ -45,6 +55,56 @@ export const syncUser = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({
       success: false,
       message: "Failed to sync user",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
+export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await getUserByStackId(req.user!.sub);
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found — call /api/user/sync first" });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: user });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch current user",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
+export const updateRole = async (req: Request, res: Response): Promise<void> => {
+  const parsed = updateRoleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, message: "Invalid payload", errors: parsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const user = await getUserByStackId(req.user!.sub);
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found — call /api/user/sync first" });
+      return;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        role: parsed.data.role,
+        hasCompletedRoleOnboarding: true,
+      },
+    });
+
+    res.status(200).json({ success: true, data: updatedUser });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update role",
       error: error instanceof Error ? error.message : String(error),
     });
   }

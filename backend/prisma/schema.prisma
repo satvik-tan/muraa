@@ -12,11 +12,15 @@ model User {
   id          String   @id @default(uuid())
   email       String   @unique
   name        String?
+  role        UserRole @default(HR)
+  hasCompletedRoleOnboarding Boolean @default(false)
   createdAt   DateTime @default(now())
   stackUserId String   @unique
 
-  jobs     Job[]
-  sessions InterviewSession[]
+  jobs                  Job[]
+  sessions              InterviewSession[]
+  applications          Application[]      @relation("CandidateApplications")
+  reviewedApplications  Application[]      @relation("ReviewedApplications")
 }
 
 model Job {
@@ -32,13 +36,42 @@ model Job {
 
   user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions InterviewSession[]
+  applications Application[]
 
   @@index([userId])
+}
+
+model Application {
+  id          String            @id @default(uuid())
+  candidateId String
+  jobId       String
+  fullName    String?
+  email       String?
+  phone       String?
+  currentCompany String?
+  yearsExperience Int?
+  coverLetter String?
+  status      ApplicationStatus @default(PENDING)
+  reviewNote  String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  reviewedAt  DateTime?
+  reviewedById String?
+
+  candidate   User              @relation("CandidateApplications", fields: [candidateId], references: [id], onDelete: Cascade)
+  job         Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reviewedBy  User?             @relation("ReviewedApplications", fields: [reviewedById], references: [id], onDelete: SetNull)
+  sessions    InterviewSession[]
+
+  @@unique([candidateId, jobId])
+  @@index([candidateId])
+  @@index([jobId, status])
 }
 
 model InterviewSession {
   id             String    @id @default(uuid())
   userId         String?   // nullable — guest candidates have no account
+  applicationId  String?
   jobId          String    // @unique removed — many sessions per job
   candidateName  String?
   candidateEmail String?
@@ -48,11 +81,13 @@ model InterviewSession {
   recordingKey String?
 
   user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
   job        Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
   transcript Transcript[]
 
   @@index([userId])
   @@index([jobId])
+  @@index([applicationId])
 }
 
 model Transcript {
@@ -70,4 +105,15 @@ model Transcript {
 enum Role {
   user
   nova
+}
+
+enum UserRole {
+  CANDIDATE
+  HR
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

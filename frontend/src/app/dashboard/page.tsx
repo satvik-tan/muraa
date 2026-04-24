@@ -4,8 +4,17 @@ import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useUserSync } from "@/hooks/useUserSync";
-import { useJobs, useJobCandidates, type Job, type CandidateSession, type CreateJobInput } from "@/hooks/useJobs";
+import { useCurrentUser, useUpdateUserRole, useUserSync } from "@/hooks/useUserSync";
+import {
+  useJobs,
+  useJobCandidates,
+  useApplicationsForJob,
+  useUpdateApplicationStatus,
+  useMyApplications,
+  type Job,
+  type CandidateSession,
+  type CreateJobInput,
+} from "@/hooks/useJobs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -233,19 +242,80 @@ function CandidatesDialog({
   onClose: () => void;
 }) {
   const { data: candidates, isLoading } = useJobCandidates(jobId);
+  const { data: applications, isLoading: isLoadingApplications } = useApplicationsForJob(jobId);
+  const updateApplicationStatus = useUpdateApplicationStatus();
+
+  const handleReview = async (applicationId: string, status: "APPROVED" | "REJECTED") => {
+    try {
+      await updateApplicationStatus.mutateAsync({ applicationId, status });
+      toast.success(`Application ${status === "APPROVED" ? "approved" : "rejected"}.`);
+    } catch {
+      toast.error("Failed to update application status.");
+    }
+  };
 
   return (
     <Dialog open={!!jobId} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display font-bold text-xl">
-            Candidates — {jobTitle}
+            Applications and Interviews — {jobTitle}
           </DialogTitle>
         </DialogHeader>
+        {isLoadingApplications ? (
+          <p className="text-sm text-muted-foreground py-4">Loading applications…</p>
+        ) : !applications || applications.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">No applications yet.</p>
+        ) : (
+          <div className="mb-6">
+            <h3 className="font-semibold text-sm mb-2">Applications</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Exp</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {applications.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-medium">{a.fullName ?? a.candidate?.name ?? "—"}</TableCell>
+                    <TableCell>{a.email ?? a.candidate?.email ?? "—"}</TableCell>
+                    <TableCell>{a.phone ?? "—"}</TableCell>
+                    <TableCell>{a.currentCompany ?? "—"}</TableCell>
+                    <TableCell>{a.yearsExperience ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={a.status === "APPROVED" ? "default" : a.status === "REJECTED" ? "destructive" : "secondary"}>
+                        {a.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {a.status === "PENDING" ? (
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" onClick={() => handleReview(a.id, "APPROVED")}>Approve</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleReview(a.id, "REJECTED")}>Reject</Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Reviewed</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        <h3 className="font-semibold text-sm mb-2">Interview Sessions</h3>
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-4">Loading…</p>
         ) : !candidates || candidates.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No candidates yet. Share the interview link to invite people.</p>
+          <p className="text-sm text-muted-foreground py-4">No interview sessions yet. Candidates can start only after approval.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -253,6 +323,7 @@ function CandidatesDialog({
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Application</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Transcript</TableHead>
                 <TableHead>Recording</TableHead>
@@ -266,6 +337,11 @@ function CandidatesDialog({
                   <TableCell>
                     <Badge variant={c.isCompleted ? "default" : "secondary"}>
                       {c.isCompleted ? "Completed" : "In Progress"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={c.application?.status === "APPROVED" ? "default" : "secondary"}>
+                      {c.application?.status ?? "—"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -394,6 +470,9 @@ export default function DashboardPage() {
   useUserSync();
 
   const { jobsQuery, createJob, deleteJob } = useJobs();
+  const currentUserQuery = useCurrentUser();
+  const updateUserRole = useUpdateUserRole();
+  const myApplicationsQuery = useMyApplications(currentUserQuery.data?.role === "CANDIDATE");
   const [createOpen, setCreateOpen] = useState(false);
   const [candidatesTarget, setCandidatesTarget] = useState<Job | null>(null);
 
@@ -415,6 +494,96 @@ export default function DashboardPage() {
   };
 
   const jobs = jobsQuery.data ?? [];
+
+  if (currentUserQuery.isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto max-w-5xl px-4 pt-28 pb-16">
+          <div className="rounded-2xl border border-border bg-card h-48 animate-pulse" />
+        </main>
+      </div>
+    );
+  }
+
+  const currentUser = currentUserQuery.data;
+
+  if (!currentUser?.hasCompletedRoleOnboarding) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto max-w-xl px-4 pt-28 pb-16">
+          <div className="rounded-2xl border border-border bg-card p-8">
+            <h1 className="font-display font-black text-3xl text-foreground mb-2">Choose your role</h1>
+            <p className="text-sm text-muted-foreground mb-6">
+              This helps us show the right dashboard and interview flow.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button
+                disabled={updateUserRole.isPending}
+                onClick={() => updateUserRole.mutate("CANDIDATE")}
+              >
+                Continue as Candidate
+              </Button>
+              <Button
+                variant="outline"
+                disabled={updateUserRole.isPending}
+                onClick={() => updateUserRole.mutate("HR")}
+              >
+                Continue as HR
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (currentUser.role === "CANDIDATE") {
+    const applications = myApplicationsQuery.data ?? [];
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto max-w-4xl px-4 pt-28 pb-16">
+          <h1 className="font-display font-black text-4xl text-foreground mb-2">My Applications</h1>
+          <p className="text-muted-foreground mb-6">Track your job applications and approval status.</p>
+          {myApplicationsQuery.isLoading ? (
+            <div className="rounded-2xl border border-border bg-card h-48 animate-pulse" />
+          ) : applications.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-sm text-muted-foreground">
+              You have not applied to any jobs yet.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Applied</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {applications.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-medium">{a.job?.title ?? "—"}</TableCell>
+                    <TableCell>{a.job?.companyName ?? "—"}</TableCell>
+                    <TableCell>{a.fullName ?? "—"}</TableCell>
+                    <TableCell>{a.email ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={a.status === "APPROVED" ? "default" : a.status === "REJECTED" ? "destructive" : "secondary"}>
+                        {a.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{new Date(a.createdAt).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

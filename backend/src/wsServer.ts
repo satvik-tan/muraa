@@ -6,6 +6,7 @@ import { IncomingMessage } from "http";
 import { AudioQueue } from "./services/audioQueue.js";
 import { startNovaSession } from "./novaConnect.js";
 import { prisma } from "./services/prisma.js";
+import { verifyStackAccessToken } from "./middleware/stackAuth.middleware.js";
 
 type InterviewJobContext = {
   title: string;
@@ -25,6 +26,8 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
   // e.g. ws://localhost:8080?jobId=xxx&candidateName=yyy&candidateEmail=zzz
   const url = new URL(req.url ?? "/", "http://localhost:8080");
   const jobId         = url.searchParams.get("jobId");
+  const applicationId = url.searchParams.get("applicationId");
+  const accessToken = url.searchParams.get("accessToken");
   const candidateName  = url.searchParams.get("candidateName") ?? "Anonymous";
   const candidateEmail = url.searchParams.get("candidateEmail") ?? "";
 
@@ -32,12 +35,61 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
   let sessionId: string | undefined;
   let jobContext: InterviewJobContext | undefined;
 
-  // Create a DB session if a jobId was provided
+  // Create a DB session only for authenticated candidates with approved application.
   if (jobId) {
     try {
+      if (!accessToken) {
+        ws.send(JSON.stringify({ type: "error", message: "Missing access token" }));
+        ws.close();
+        return;
+      }
+
+      if (!applicationId) {
+        ws.send(JSON.stringify({ type: "error", message: "Missing approved application" }));
+        ws.close();
+        return;
+      }
+
+      const payload = await verifyStackAccessToken(accessToken);
+      const stackUserId = payload.sub;
+      if (!stackUserId || typeof stackUserId !== "string") {
+        ws.send(JSON.stringify({ type: "error", message: "Invalid access token" }));
+        ws.close();
+        return;
+      }
+
+      const user = await prisma.user.findUnique({ where: { stackUserId } });
+      if (!user) {
+        ws.send(JSON.stringify({ type: "error", message: "User not found" }));
+        ws.close();
+        return;
+      }
+
+      if (user.role !== "CANDIDATE") {
+        ws.send(JSON.stringify({ type: "error", message: "Only candidates can start interviews" }));
+        ws.close();
+        return;
+      }
+
       const job = await prisma.job.findUnique({ where: { id: jobId } });
       if (!job) {
         ws.send(JSON.stringify({ type: "error", message: "Job not found" }));
+        ws.close();
+        return;
+      }
+
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+      });
+
+      if (!application || application.jobId !== job.id || application.candidateId !== user.id) {
+        ws.send(JSON.stringify({ type: "error", message: "Application not valid for this job and user" }));
+        ws.close();
+        return;
+      }
+
+      if (application.status !== "APPROVED") {
+        ws.send(JSON.stringify({ type: "error", message: "Application must be approved before interview" }));
         ws.close();
         return;
       }
@@ -51,7 +103,13 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
       };
 
       const session = await prisma.interviewSession.create({
-        data: { jobId, candidateName, candidateEmail },
+        data: {
+          jobId,
+          applicationId: application.id,
+          userId: user.id,
+          candidateName,
+          candidateEmail,
+        },
       });
       sessionId = session.id;
       ws.send(JSON.stringify({ type: "session_created", sessionId }));

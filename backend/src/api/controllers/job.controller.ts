@@ -1,8 +1,17 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../services/prisma.js";
+import { z } from "zod";
 
 type JobIdParams = { id: string };
 type ShareIdParams = { shareId: string };
+
+const createJobSchema = z.object({
+  title: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  companyName: z.string().trim().max(120).optional().nullable(),
+  experienceLevel: z.string().trim().max(60).optional().nullable(),
+  skills: z.array(z.string().trim().min(1)).optional(),
+});
 
 /** Resolve the Stack Auth JWT subject to the DB User row */
 async function getUserByStackId(stackUserId: string) {
@@ -11,6 +20,12 @@ async function getUserByStackId(stackUserId: string) {
 
 // POST /api/jobs
 export const createJob = async (req: Request, res: Response): Promise<void> => {
+  const parsed = createJobSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, message: "Invalid payload", errors: parsed.error.flatten() });
+    return;
+  }
+
   try {
     const user = await getUserByStackId(req.user!.sub);
     if (!user) {
@@ -18,21 +33,19 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const { title, description, companyName, experienceLevel, skills } = req.body;
-
-    if (!title || !description) {
-      res.status(400).json({ success: false, message: "title and description are required" });
+    if (user.role !== "HR") {
+      res.status(403).json({ success: false, message: "Only HR users can create jobs" });
       return;
     }
 
     const job = await prisma.job.create({
       data: {
         userId: user.id,
-        title,
-        description,
-        companyName: companyName ?? null,
-        experienceLevel: experienceLevel ?? null,
-        skills: Array.isArray(skills) ? skills : [],
+        title: parsed.data.title,
+        description: parsed.data.description,
+        companyName: parsed.data.companyName ?? null,
+        experienceLevel: parsed.data.experienceLevel ?? null,
+        skills: parsed.data.skills ?? [],
       },
     });
 
@@ -144,7 +157,15 @@ export const getJobCandidates = async (req: Request<JobIdParams>, res: Response)
 
     const sessions = await prisma.interviewSession.findMany({
       where: { jobId: req.params.id },
-      include: { transcript: { orderBy: { timestamp: "asc" } } },
+      include: {
+        transcript: { orderBy: { timestamp: "asc" } },
+        application: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+      },
       orderBy: { startedAt: "desc" },
     });
 

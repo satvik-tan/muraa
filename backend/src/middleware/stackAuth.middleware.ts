@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import * as jose from "jose";
+import { prisma } from "../services/prisma.js";
 
 // JWKS is created lazily on first request so dotenv has already run
 let jwks: ReturnType<typeof jose.createRemoteJWKSet> | null = null;
@@ -54,22 +55,7 @@ export const stackAuthMiddleware = async (
   }
 
   try {
-    const jwksConfig = getJwks();
-    if (!jwksConfig) {
-      console.log(
-        "stackAuthMiddleware: missing STACK_PROJECT_ID (or NEXT_PUBLIC_STACK_PROJECT_ID) in backend environment"
-      );
-      res.status(500).json({
-        success: false,
-        message: "Server misconfiguration: missing Stack project ID",
-      });
-      return;
-    }
-
-    const { payload } = await jose.jwtVerify(accessToken, jwksConfig.jwks, {
-      // aud = project ID per Stack Auth JWT spec
-      audience: jwksConfig.projectId,
-    });
+    const payload = await verifyStackAccessToken(accessToken);
     // Attach the verified user payload so downstream handlers can access req.user
     req.user = payload as Request["user"];
     next();
@@ -78,3 +64,51 @@ export const stackAuthMiddleware = async (
     res.status(401).json({ success: false, message: "Unauthorized: invalid or expired token" });
   }
 };
+
+export async function verifyStackAccessToken(accessToken: string): Promise<jose.JWTPayload> {
+  const jwksConfig = getJwks();
+  if (!jwksConfig) {
+    throw new Error("Server misconfiguration: missing Stack project ID");
+  }
+
+  const { payload } = await jose.jwtVerify(accessToken, jwksConfig.jwks, {
+    audience: jwksConfig.projectId,
+  });
+
+  return payload;
+}
+
+export function requireRole(requiredRole: "CANDIDATE" | "HR") {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const stackUserId = req.user?.sub;
+      if (!stackUserId) {
+        res.status(401).json({ success: false, message: "Unauthorized" });
+        return;
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { stackUserId },
+        select: { role: true },
+      });
+
+      if (!user) {
+        res.status(404).json({ success: false, message: "User not found" });
+        return;
+      }
+
+      if (user.role !== requiredRole) {
+        res.status(403).json({ success: false, message: `Forbidden: ${requiredRole} role required` });
+        return;
+      }
+
+      next();
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Role check failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+}

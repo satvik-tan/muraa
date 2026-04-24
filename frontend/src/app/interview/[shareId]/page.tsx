@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useStackApp } from "@stackframe/stack";
 import { useNovaSocket } from "@/hooks/useNovaSocket";
 import { useMicRecorder } from "@/hooks/useMicRecorder";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -16,6 +18,8 @@ import type { NovaMessage } from "@/hooks/useNovaSocket";
 import type { TranscriptEntry } from "@/components/TranscriptDisplay";
 import { useInterviewRecorder } from "@/hooks/useInterviewRecorder";
 import { useInterviewUpload } from "@/hooks/useInterviewUpload"
+import { useInterviewAccess, useMyApplicationForShareId } from "@/hooks/useJobs";
+import { useCurrentUser, useUpdateUserRole, useUserSync } from "@/hooks/useUserSync";
 
 function upsertStreamingTranscript(
   prev: TranscriptEntry[],
@@ -83,7 +87,11 @@ interface JobPublic {
 type PageState = "loading" | "form" | "ready" | "error";
 
 export default function SharedInterviewPage() {
+  useUserSync();
+
   const params = useParams<{ shareId: string }>();
+  const router = useRouter();
+  const stackApp = useStackApp();
 
   const [pageState, setPageState] = useState<PageState>("loading");
   const [job, setJob] = useState<JobPublic | null>(null);
@@ -92,6 +100,7 @@ export default function SharedInterviewPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [formError, setFormError] = useState("");
+  const [isPreparingInterview, setIsPreparingInterview] = useState(false);
 
   // WS URL is set after form submission
   const [wsUrl, setWsUrl] = useState("ws://localhost:8080");
@@ -104,6 +113,11 @@ export default function SharedInterviewPage() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const shareId = Array.isArray(params.shareId) ? params.shareId[0] : params.shareId
+
+  const currentUserQuery = useCurrentUser();
+  const updateUserRole = useUpdateUserRole();
+  const myApplicationQuery = useMyApplicationForShareId(shareId ?? null, !!currentUserQuery.data);
+  const interviewAccessQuery = useInterviewAccess(shareId ?? null);
 
   const { start, connectToNova, stop } = useInterviewRecorder()
   const { uploadRecording } = useInterviewUpload()
@@ -191,18 +205,58 @@ export default function SharedInterviewPage() {
 
   // Form submission — validate and transition to interview
   function handleFormSubmit() {
+    void (async () => {
     setFormError("");
     if (!name.trim()) { setFormError("Please enter your name."); return; }
     if (!email.trim() || !email.includes("@")) { setFormError("Please enter a valid email."); return; }
     if (!job) return;
 
+    if (!myApplicationQuery.data?.application) {
+      setFormError("Apply to this job first.");
+      return;
+    }
+
+    if (myApplicationQuery.data.application.status !== "APPROVED") {
+      setFormError("Your application is not approved yet.");
+      return;
+    }
+
+    try {
+      setIsPreparingInterview(true);
+      const user = await stackApp.getUser();
+      if (!user) {
+        setFormError("Please log in first.");
+        return;
+      }
+
+      const { accessToken } = await user.getAuthJson();
+      if (!accessToken) {
+        setFormError("Could not fetch auth token.");
+        return;
+      }
+
+      const access = await interviewAccessQuery.refetch();
+      const accessData = access.data;
+      if (!accessData?.applicationId) {
+        setFormError("Interview access is not available yet.");
+        return;
+      }
+
     const url =
       `ws://localhost:8080?jobId=${encodeURIComponent(job.id)}` +
+      `&applicationId=${encodeURIComponent(accessData.applicationId)}` +
+      `&accessToken=${encodeURIComponent(accessToken)}` +
       `&candidateName=${encodeURIComponent(name.trim())}` +
       `&candidateEmail=${encodeURIComponent(email.trim())}`;
 
     setWsUrl(url);
     setPageState("ready");
+    } catch {
+      setFormError("Failed to validate interview access.");
+    } finally {
+      setIsPreparingInterview(false);
+    }
+    })();
   }
 
   const handleStartRecording = useCallback(async () => {
@@ -243,6 +297,88 @@ export default function SharedInterviewPage() {
 
   // ── Candidate info form ──────────────────────────────────────────────────
   if (pageState === "form") {
+    const currentUser = currentUserQuery.data;
+    const application = myApplicationQuery.data?.application;
+
+    if (currentUserQuery.isLoading || myApplicationQuery.isLoading) {
+      return (
+        <div className="min-h-screen bg-background">
+          <Navbar />
+          <main className="container mx-auto max-w-2xl px-4 pt-28 pb-16">
+            <div className="rounded-2xl border border-border bg-card h-48 animate-pulse" />
+          </main>
+        </div>
+      );
+    }
+
+    if (!currentUser) {
+      return (
+        <div className="min-h-screen bg-background">
+          <Navbar />
+          <main className="container mx-auto max-w-2xl px-4 pt-28 pb-16 text-center">
+            <h1 className="font-display font-black text-3xl text-foreground mb-3">Log in required</h1>
+            <p className="text-muted-foreground mb-4">Please log in before applying or taking this interview.</p>
+            <Button asChild>
+              <Link href="/handler/sign-in">Log in</Link>
+            </Button>
+          </main>
+        </div>
+      );
+    }
+
+    if (!currentUser.hasCompletedRoleOnboarding) {
+      return (
+        <div className="min-h-screen bg-background">
+          <Navbar />
+          <main className="container mx-auto max-w-2xl px-4 pt-28 pb-16">
+            <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+              <h2 className="font-display font-bold text-xl text-foreground mb-2">Choose your role first</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                Candidates can apply and take interviews. HR users create and review jobs.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  disabled={updateUserRole.isPending}
+                  onClick={() => updateUserRole.mutate("CANDIDATE")}
+                >
+                  Continue as Candidate
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={updateUserRole.isPending}
+                  onClick={() => updateUserRole.mutate("HR")}
+                >
+                  Continue as HR
+                </Button>
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    if (currentUser.role !== "CANDIDATE") {
+      return (
+        <div className="min-h-screen bg-background">
+          <Navbar />
+          <main className="container mx-auto max-w-2xl px-4 pt-28 pb-16">
+            <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+              <h2 className="font-display font-bold text-xl text-foreground mb-2">Candidate role required</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                Your current role is HR. Switch to candidate to apply and take this interview.
+              </p>
+              <Button
+                disabled={updateUserRole.isPending}
+                onClick={() => updateUserRole.mutate("CANDIDATE")}
+              >
+                Switch to Candidate
+              </Button>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -278,8 +414,29 @@ export default function SharedInterviewPage() {
               Before we begin
             </h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Enter your details so the recruiter can identify your submission.
+              Apply first, wait for HR approval, then start your interview.
             </p>
+
+            <div className="mb-4">
+              {!application ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                  <p className="text-sm text-muted-foreground">You have not applied to this job yet.</p>
+                  <Button
+                    size="sm"
+                    onClick={() => router.push(`/apply/${shareId}`)}
+                  >
+                    Apply now
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-border p-3 text-sm">
+                  <span className="font-medium">Application status:</span>{" "}
+                  <span className={application.status === "APPROVED" ? "text-green-600" : application.status === "REJECTED" ? "text-destructive" : "text-muted-foreground"}>
+                    {application.status}
+                  </span>
+                </div>
+              )}
+            </div>
 
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
@@ -302,8 +459,12 @@ export default function SharedInterviewPage() {
                 />
               </div>
               {formError && <p className="text-sm text-destructive">{formError}</p>}
-              <Button className="w-full mt-2" onClick={handleFormSubmit}>
-                Start Interview
+              <Button
+                className="w-full mt-2"
+                onClick={handleFormSubmit}
+                disabled={isPreparingInterview || application?.status !== "APPROVED"}
+              >
+                {isPreparingInterview ? "Preparing..." : "Start Interview"}
               </Button>
             </div>
           </div>

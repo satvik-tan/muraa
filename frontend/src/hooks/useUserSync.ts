@@ -1,7 +1,47 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useStackApp } from "@stackframe/stack";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+const API = "http://localhost:8000";
+
+async function authedFetch(url: string, token: string, init?: RequestInit) {
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      "x-stack-access-token": token,
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json();
+}
+
+function useGetToken() {
+  const stackApp = useStackApp();
+  return useCallback(async () => {
+    const user = await stackApp.getUser();
+    if (!user) throw new Error("Not authenticated");
+    const { accessToken } = await user.getAuthJson();
+    if (!accessToken) throw new Error("No access token available");
+    return accessToken;
+  }, [stackApp]);
+}
+
+export interface AppUser {
+  id: string;
+  email: string;
+  name: string | null;
+  stackUserId: string;
+  role: "CANDIDATE" | "HR";
+  hasCompletedRoleOnboarding: boolean;
+}
 
 /**
  * useUserSync
@@ -13,42 +53,13 @@ import { useStackApp } from "@stackframe/stack";
  * (typically on the dashboard or after auth flow completes).
  */
 export function useUserSync() {
-  const stackApp = useStackApp();
+  const getToken = useGetToken();
 
   useEffect(() => {
     const syncUser = async () => {
       try {
-        const user = await stackApp.getUser();
-        
-        if (!user) {
-          console.log("No user authenticated");
-          return;
-        }
-
-        // Get the access token from Stack Auth
-        const { accessToken } = await user.getAuthJson();
-
-        if (!accessToken) {
-          console.error("No access token available");
-          return;
-        }
-
-        // Call the backend sync endpoint (explicitly target local backend on port 5000)
-        const response = await fetch("http://localhost:8000/api/user/sync", {
-          method: "POST",
-          headers: {
-            "x-stack-access-token": accessToken,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          console.error("Failed to sync user:", error);
-          return;
-        }
-
-        const data = await response.json();
+        const token = await getToken();
+        const data = await authedFetch(`${API}/api/user/sync`, token, { method: "POST" });
         console.log("User synced successfully:", data.data);
       } catch (error) {
         console.error("Error syncing user:", error);
@@ -56,5 +67,37 @@ export function useUserSync() {
     };
 
     syncUser();
-  }, [stackApp]);
+  }, [getToken]);
+}
+
+export function useCurrentUser() {
+  const getToken = useGetToken();
+
+  return useQuery<AppUser>({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const token = await getToken();
+      const data = await authedFetch(`${API}/api/user/me`, token);
+      return data.data;
+    },
+  });
+}
+
+export function useUpdateUserRole() {
+  const getToken = useGetToken();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (role: "CANDIDATE" | "HR") => {
+      const token = await getToken();
+      const data = await authedFetch(`${API}/api/user/role`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      });
+      return data.data as AppUser;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["current-user"] });
+    },
+  });
 }

@@ -3,7 +3,7 @@
 
 import express from 'express';
 import { stackAuthMiddleware } from '../../middleware/stackAuth.middleware.js';
-import { startInterview, getQuestions } from '../controllers/interview.controller.js';
+import { startInterview, getQuestions, getInterviewAccess } from '../controllers/interview.controller.js';
 
 const router = express.Router();
 
@@ -15,5 +15,6 @@ router.post('/start', startInterview);
 
 // Example route for getting interview questions
 router.get('/questions', getQuestions);
+router.get('/access/:shareId', getInterviewAccess);
 
 export default router;

@@ -63,7 +63,39 @@ export interface CandidateSession {
   startedAt: string;
   endedAt: string | null;
   recordingKey?: string | null;
+  application?: {
+    id: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+  } | null;
   transcript: TranscriptRow[];
+}
+
+export interface Application {
+  id: string;
+  jobId: string;
+  candidateId: string;
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  currentCompany: string | null;
+  yearsExperience: number | null;
+  coverLetter: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  reviewNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt: string | null;
+  candidate?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  job?: {
+    id: string;
+    title: string;
+    companyName: string | null;
+    shareId: string;
+  };
 }
 
 export function useJobs() {
@@ -110,6 +142,112 @@ export function useJobCandidates(jobId: string | null) {
     queryFn: async () => {
       const token = await getToken();
       const data = await authedFetch(`${API}/api/jobs/${jobId}/candidates`, token);
+      return data.data;
+    },
+  });
+}
+
+export function useApplicationsForJob(jobId: string | null) {
+  const getToken = useGetToken();
+
+  return useQuery<Application[]>({
+    queryKey: ["applications", "job", jobId],
+    enabled: !!jobId,
+    queryFn: async () => {
+      const token = await getToken();
+      const data = await authedFetch(`${API}/api/jobs/${jobId}/applications`, token);
+      return data.data;
+    },
+  });
+}
+
+export function useMyApplications(enabled = true) {
+  const getToken = useGetToken();
+
+  return useQuery<Application[]>({
+    queryKey: ["applications", "me"],
+    enabled,
+    queryFn: async () => {
+      const token = await getToken();
+      const data = await authedFetch(`${API}/api/applications/me`, token);
+      return data.data;
+    },
+  });
+}
+
+export function useApplyToJob() {
+  const getToken = useGetToken();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      jobId: string;
+      fullName: string;
+      email: string;
+      phone?: string;
+      currentCompany?: string;
+      yearsExperience?: number;
+      coverLetter?: string;
+    }) => {
+      const token = await getToken();
+      return authedFetch(`${API}/api/applications`, token, {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["applications", "me"] });
+      qc.invalidateQueries({ queryKey: ["applications", "share"] });
+    },
+  });
+}
+
+export function useUpdateApplicationStatus() {
+  const getToken = useGetToken();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { applicationId: string; status: "APPROVED" | "REJECTED"; reviewNote?: string }) => {
+      const token = await getToken();
+      return authedFetch(`${API}/api/applications/${input.applicationId}/status`, token, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: input.status,
+          reviewNote: input.reviewNote,
+        }),
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["applications"] });
+      qc.invalidateQueries({ queryKey: ["candidates"] });
+    },
+  });
+}
+
+export function useMyApplicationForShareId(shareId: string | null, enabled = true) {
+  const getToken = useGetToken();
+
+  return useQuery<{ jobId: string; application: Application | null }>({
+    queryKey: ["applications", "share", shareId],
+    enabled: !!shareId && enabled,
+    queryFn: async () => {
+      const token = await getToken();
+      const data = await authedFetch(`${API}/api/applications/job-share/${shareId}/me`, token);
+      return data.data;
+    },
+  });
+}
+
+export function useInterviewAccess(shareId: string | null) {
+  const getToken = useGetToken();
+
+  return useQuery<{ jobId: string; applicationId: string; applicationStatus: "APPROVED" }>({
+    queryKey: ["interview-access", shareId],
+    enabled: false,
+    retry: false,
+    queryFn: async () => {
+      const token = await getToken();
+      const data = await authedFetch(`${API}/api/interview/access/${shareId}`, token);
       return data.data;
     },
   });
