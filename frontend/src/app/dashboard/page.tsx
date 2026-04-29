@@ -7,12 +7,9 @@ import { toast } from "sonner";
 import { useCurrentUser, useUpdateUserRole, useUserSync } from "@/hooks/useUserSync";
 import {
   useJobs,
-  useJobCandidates,
-  useApplicationsForJob,
-  useUpdateApplicationStatus,
+  useAvailableJobs,
   useMyApplications,
   type Job,
-  type CandidateSession,
   type CreateJobInput,
 } from "@/hooks/useJobs";
 import { Button } from "@/components/ui/button";
@@ -28,7 +25,6 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { useInterviewUpload } from "@/hooks/useInterviewUpload";
 
 // ── Create Job Form ──────────────────────────────────────────────────────────
 
@@ -143,236 +139,18 @@ function CreateJobDialog({
   );
 }
 
-// ── Transcript viewer ────────────────────────────────────────────────────────
-
-function TranscriptViewer({ session }: { session: CandidateSession }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="text-xs text-primary underline underline-offset-2 hover:opacity-70 transition-opacity"
-      >
-        View
-      </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-display font-bold text-lg">
-              Transcript — {session.candidateName ?? "Candidate"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 pt-2">
-            {session.transcript.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No transcript available.</p>
-            ) : (
-              session.transcript.map((t) => (
-                <div
-                  key={t.id}
-                  className={`flex ${t.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-body ${
-                      t.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
-                    }`}
-                  >
-                    <span className="block text-[10px] font-semibold mb-1 opacity-60">
-                      {t.role === "nova" ? "Ary" : "Candidate"}
-                    </span>
-                    {t.content}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-function RecordingAction({ session }: { session: CandidateSession }) {
-  const hasRecording = Boolean(session.recordingKey?.trim());
-  const { getPlaybackUrl } = useInterviewUpload();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handlePlay = async () => {
-    try {
-      setIsLoading(true);
-      const { url } = await getPlaybackUrl.mutateAsync(session.id);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load recording.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (!hasRecording) {
-    return (
-      <span className="text-xs text-muted-foreground" title="Recording has not been uploaded for this interview session yet.">
-        No recording
-      </span>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      disabled={isLoading}
-      onClick={handlePlay}
-      className="text-xs text-primary underline underline-offset-2 hover:opacity-70 transition-opacity"
-    >
-      {isLoading ? "Loading…" : "Play Recording"}
-    </button>
-  );
-}
-
-// ── Candidates Dialog ────────────────────────────────────────────────────────
-
-function CandidatesDialog({
-  jobId,
-  jobTitle,
-  onClose,
-}: {
-  jobId: string | null;
-  jobTitle: string;
-  onClose: () => void;
-}) {
-  const { data: candidates, isLoading } = useJobCandidates(jobId);
-  const { data: applications, isLoading: isLoadingApplications } = useApplicationsForJob(jobId);
-  const updateApplicationStatus = useUpdateApplicationStatus();
-
-  const handleReview = async (applicationId: string, status: "APPROVED" | "REJECTED") => {
-    try {
-      await updateApplicationStatus.mutateAsync({ applicationId, status });
-      toast.success(`Application ${status === "APPROVED" ? "approved" : "rejected"}.`);
-    } catch {
-      toast.error("Failed to update application status.");
-    }
-  };
-
-  return (
-    <Dialog open={!!jobId} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-display font-bold text-xl">
-            Applications and Interviews — {jobTitle}
-          </DialogTitle>
-        </DialogHeader>
-        {isLoadingApplications ? (
-          <p className="text-sm text-muted-foreground py-4">Loading applications…</p>
-        ) : !applications || applications.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No applications yet.</p>
-        ) : (
-          <div className="mb-6">
-            <h3 className="font-semibold text-sm mb-2">Applications</h3>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Exp</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {applications.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell className="font-medium">{a.fullName ?? a.candidate?.name ?? "—"}</TableCell>
-                    <TableCell>{a.email ?? a.candidate?.email ?? "—"}</TableCell>
-                    <TableCell>{a.phone ?? "—"}</TableCell>
-                    <TableCell>{a.currentCompany ?? "—"}</TableCell>
-                    <TableCell>{a.yearsExperience ?? "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant={a.status === "APPROVED" ? "default" : a.status === "REJECTED" ? "destructive" : "secondary"}>
-                        {a.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {a.status === "PENDING" ? (
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" onClick={() => handleReview(a.id, "APPROVED")}>Approve</Button>
-                          <Button size="sm" variant="outline" onClick={() => handleReview(a.id, "REJECTED")}>Reject</Button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Reviewed</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-
-        <h3 className="font-semibold text-sm mb-2">Interview Sessions</h3>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground py-4">Loading…</p>
-        ) : !candidates || candidates.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No interview sessions yet. Candidates can start only after approval.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Application</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Transcript</TableHead>
-                <TableHead>Recording</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {candidates.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.candidateName ?? "—"}</TableCell>
-                  <TableCell>{c.candidateEmail ?? "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant={c.isCompleted ? "default" : "secondary"}>
-                      {c.isCompleted ? "Completed" : "In Progress"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={c.application?.status === "APPROVED" ? "default" : "secondary"}>
-                      {c.application?.status ?? "—"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(c.startedAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <TranscriptViewer session={c} />
-                  </TableCell>
-                  <TableCell>
-                    <RecordingAction session={c} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ── Job Card ─────────────────────────────────────────────────────────────────
 
 function JobCard({
   job,
   onDelete,
-  onViewCandidates,
+  onToggleStatus,
+  isUpdatingStatus,
 }: {
   job: Job;
   onDelete: (id: string) => void;
-  onViewCandidates: (job: Job) => void;
+  onToggleStatus: (job: Job) => void;
+  isUpdatingStatus: boolean;
 }) {
   const router = useRouter();
 
@@ -387,38 +165,39 @@ function JobCard({
   };
 
   const levelColors: Record<string, string> = {
-    Junior: "bg-green-500/10 text-green-700 dark:text-green-400",
-    Mid: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-    Senior: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
+    Junior: "bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200 border border-emerald-500/30 dark:border-emerald-300/40",
+    Mid: "bg-blue-500/15 text-blue-700 dark:bg-blue-400/20 dark:text-blue-200 border border-blue-500/30 dark:border-blue-300/40",
+    Senior: "bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/20 dark:text-fuchsia-200 border border-fuchsia-500/30 dark:border-fuchsia-300/40",
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm flex flex-col gap-4">
+    <div className="group relative overflow-hidden rounded-2xl border-2 border-border bg-card p-5 transition-all duration-150">
+
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1 min-w-0">
+      <div className="flex items-start justify-between gap-3 pt-1 mb-3">
+        <div className="flex flex-col gap-1.5 min-w-0">
           <h3 className="font-display font-bold text-lg text-foreground leading-tight truncate">{job.title}</h3>
           {job.companyName && (
             <span className="text-sm text-muted-foreground">{job.companyName}</span>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Badge variant={job.isOpen ? "secondary" : "outline"}>
+            {job.isOpen ? "Open" : "Closed"}
+          </Badge>
           {job.experienceLevel && (
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${levelColors[job.experienceLevel] ?? "bg-muted text-muted-foreground"}`}>
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${levelColors[job.experienceLevel] ?? "bg-muted text-muted-foreground border border-border"}`}>
               {job.experienceLevel}
             </span>
           )}
         </div>
       </div>
 
-      {/* Description */}
-      <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{job.description}</p>
-
       {/* Skills */}
       {job.skills.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 mb-3">
           {job.skills.map((skill) => (
-            <Badge key={skill} variant="secondary" className="text-xs">
+            <Badge key={skill} variant="secondary" className="text-xs max-w-full whitespace-normal wrap-break-word h-auto py-1 leading-tight border border-border/60 bg-muted/70 dark:bg-muted/30">
               {skill}
             </Badge>
           ))}
@@ -426,13 +205,13 @@ function JobCard({
       )}
 
       {/* Candidate count */}
-      <div className="text-sm text-muted-foreground">
+      <div className="text-sm text-muted-foreground rounded bg-muted/60 dark:bg-muted/30 px-2 py-1.5 border border-border/70 mb-3">
         <span className="font-semibold text-foreground">{job._count?.sessions ?? 0}</span> candidate
         {(job._count?.sessions ?? 0) !== 1 ? "s" : ""}
       </div>
 
       {/* Actions */}
-      <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-border/70">
         <Button size="sm" onClick={handleLaunch}>
           Launch
         </Button>
@@ -442,12 +221,19 @@ function JobCard({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => onViewCandidates(job)}
-          disabled={(job._count?.sessions ?? 0) === 0}
+          onClick={() => onToggleStatus(job)}
+          disabled={isUpdatingStatus}
+        >
+          {job.isOpen ? "Close Job" : "Reopen Job"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => router.push(`/dashboard/jobs/${job.id}/candidates`)}
         >
           Candidates ({job._count?.sessions ?? 0})
         </Button>
-        <Button
+            <Button
           size="sm"
           variant="ghost"
           className="text-destructive hover:text-destructive hover:bg-destructive/10 ml-auto"
@@ -469,12 +255,12 @@ function JobCard({
 export default function DashboardPage() {
   useUserSync();
 
-  const { jobsQuery, createJob, deleteJob } = useJobs();
+  const { jobsQuery, createJob, deleteJob, updateJobStatus } = useJobs();
   const currentUserQuery = useCurrentUser();
   const updateUserRole = useUpdateUserRole();
   const myApplicationsQuery = useMyApplications(currentUserQuery.data?.role === "CANDIDATE");
+  const availableJobsQuery = useAvailableJobs(currentUserQuery.data?.role === "CANDIDATE");
   const [createOpen, setCreateOpen] = useState(false);
-  const [candidatesTarget, setCandidatesTarget] = useState<Job | null>(null);
 
   const handleCreate = async (input: CreateJobInput) => {
     try {
@@ -491,6 +277,16 @@ export default function DashboardPage() {
       onSuccess: () => toast.success("Job deleted."),
       onError: () => toast.error("Failed to delete job."),
     });
+  };
+
+  const handleToggleJobStatus = (job: Job) => {
+    updateJobStatus.mutate(
+      { jobId: job.id, isOpen: !job.isOpen },
+      {
+        onSuccess: () => toast.success(job.isOpen ? "Job closed." : "Job reopened."),
+        onError: () => toast.error("Failed to update job status."),
+      },
+    );
   };
 
   const jobs = jobsQuery.data ?? [];
@@ -539,47 +335,117 @@ export default function DashboardPage() {
 
   if (currentUser.role === "CANDIDATE") {
     const applications = myApplicationsQuery.data ?? [];
+    const appliedJobIds = new Set(applications.map((application) => application.jobId));
+    const availableJobs = (availableJobsQuery.data ?? []).filter((job) => !appliedJobIds.has(job.id));
     return (
       <div className="min-h-screen bg-background">
         <main className="container mx-auto max-w-4xl px-4 pt-28 pb-16">
-          <h1 className="font-display font-black text-4xl text-foreground mb-2">My Applications</h1>
-          <p className="text-muted-foreground mb-6">Track your job applications and approval status.</p>
-          {myApplicationsQuery.isLoading ? (
-            <div className="rounded-2xl border border-border bg-card h-48 animate-pulse" />
-          ) : applications.length === 0 ? (
-            <div className="rounded-2xl border border-border bg-card p-8 text-sm text-muted-foreground">
-              You have not applied to any jobs yet.
+          <div className="mb-10">
+            <div className="mb-6">
+              <h1 className="font-display font-black text-4xl text-foreground mb-2">Available Jobs</h1>
+              <p className="text-muted-foreground">Open roles you can apply to right now.</p>
             </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Job</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Applied</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {applications.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell className="font-medium">{a.job?.title ?? "—"}</TableCell>
-                    <TableCell>{a.job?.companyName ?? "—"}</TableCell>
-                    <TableCell>{a.fullName ?? "—"}</TableCell>
-                    <TableCell>{a.email ?? "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant={a.status === "APPROVED" ? "default" : a.status === "REJECTED" ? "destructive" : "secondary"}>
-                        {a.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(a.createdAt).toLocaleDateString()}</TableCell>
-                  </TableRow>
+            {availableJobsQuery.isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2].map((i) => (
+                  <div key={i} className="rounded-2xl border-2 border-border bg-card h-56 animate-pulse" />
                 ))}
-              </TableBody>
-            </Table>
-          )}
+              </div>
+            ) : availableJobs.length === 0 ? (
+              <div className="rounded-2xl border-2 border-border bg-card p-8 text-sm text-muted-foreground">
+                No open jobs are available right now.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {availableJobs.map((job) => (
+                  <div key={job.id} className="group relative h-full overflow-hidden rounded-2xl border bg-card p-4 transition-all duration-150 flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="font-display font-semibold text-base text-foreground leading-tight truncate">{job.title}</h3>
+                        <p className="text-sm text-muted-foreground">{job.companyName ?? "Independent"}</p>
+                      </div>
+                      {job.experienceLevel && (
+                        <Badge variant="secondary" className="text-xs px-2 py-0.5 rounded-sm">{job.experienceLevel}</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-3">{job.description}</p>
+                    {job.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {job.skills.slice(0, 6).map((skill) => (
+                          <Badge key={skill} variant="outline" className="text-xs px-2 py-0.5 rounded-sm">{skill}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t border-border/70">
+                      <span className="text-xs text-muted-foreground">Posted {new Date(job.createdAt).toLocaleDateString()}</span>
+                      <Button asChild size="sm">
+                        <a href={`/apply/${job.shareId}`}>Apply now</a>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="font-display font-black text-3xl text-foreground mb-2">My Applications</h2>
+            <p className="text-muted-foreground mb-6">Track your job applications and approval status.</p>
+            {myApplicationsQuery.isLoading ? (
+              <div className="rounded-2xl border border-border bg-card h-48 animate-pulse" />
+            ) : applications.length === 0 ? (
+              <div className="rounded-2xl border border-border bg-card p-8 text-sm text-muted-foreground">
+                You have not applied to any jobs yet.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Job</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Applied</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {applications.map((a) => (
+                    <TableRow key={a.id} className="">
+                      <TableCell className="font-medium">{a.job?.title ?? "—"}</TableCell>
+                      <TableCell>{a.job?.companyName ?? "—"}</TableCell>
+                      <TableCell>{a.fullName ?? "—"}</TableCell>
+                      <TableCell>{a.email ?? "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={a.status === "APPROVED" ? "default" : a.status === "REJECTED" ? "destructive" : "secondary"} className={a.status === "APPROVED" ? "border-2 border-black" : ""}>
+                          {a.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        <div className="flex items-center justify-between">
+                          <span>{new Date(a.createdAt).toLocaleDateString()}</span>
+                          {a.status === "APPROVED" && a.job?.shareId && (
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="default"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/interview/${a.job.shareId}`);
+                                toast.success(`Starting interview for ${a.job.title}!`);
+                              }}
+                            >
+                              <a href={`/interview/${a.job.shareId}`} className="no-underline">Start Interview</a>
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
         </main>
       </div>
     );
@@ -606,11 +472,11 @@ export default function DashboardPage() {
         {jobsQuery.isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[1, 2].map((i) => (
-              <div key={i} className="rounded-2xl border border-border bg-card h-48 animate-pulse" />
+              <div key={i} className="rounded-2xl border-2 border-border bg-card h-52 animate-pulse" />
             ))}
           </div>
         ) : jobs.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-12 text-center">
+          <div className="rounded-2xl border-2 border-border bg-card p-12 text-center">
             <p className="text-muted-foreground font-body mb-4">No jobs yet. Create your first one to get started.</p>
             <Button onClick={() => setCreateOpen(true)}>Create Job</Button>
           </div>
@@ -621,7 +487,8 @@ export default function DashboardPage() {
                 key={job.id}
                 job={job}
                 onDelete={handleDelete}
-                onViewCandidates={setCandidatesTarget}
+                onToggleStatus={handleToggleJobStatus}
+                isUpdatingStatus={updateJobStatus.isPending}
               />
             ))}
           </div>
@@ -634,12 +501,6 @@ export default function DashboardPage() {
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreate}
         isPending={createJob.isPending}
-      />
-
-      <CandidatesDialog
-        jobId={candidatesTarget?.id ?? null}
-        jobTitle={candidatesTarget?.title ?? ""}
-        onClose={() => setCandidatesTarget(null)}
       />
     </div>
   );

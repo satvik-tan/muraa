@@ -167,7 +167,7 @@ function InterviewContent() {
         {/* Two-column layout */}
         <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 items-start">
           {/* Controls card */}
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-4">
             <h2 className="font-display font-bold text-xl text-foreground mb-5">Controls</h2>
             <InterviewControls
               status={status}
@@ -180,7 +180,7 @@ function InterviewContent() {
           </div>
 
           {/* Transcript card */}
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-4">
             <TranscriptDisplay messages={messages} sessionEnded={sessionEnded} />
           </div>
         </div>

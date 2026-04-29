@@ -32,6 +32,7 @@ model Job {
   experienceLevel String?  // "Junior" | "Mid" | "Senior"
   skills          String[] // Postgres TEXT[] array
   shareId         String   @unique @default(uuid())
+  isOpen          Boolean  @default(true)
   createdAt       DateTime @default(now())
 
   user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)

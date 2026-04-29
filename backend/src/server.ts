@@ -48,12 +48,12 @@ app.use('/api/applications', applicationRouter)
 
 // 404 fallback (log for debugging)
 app.use((req, res) => {
-  console.log(`❌ 404: ${req.method} ${req.path}`);
+  console.log(`404: ${req.method} ${req.path}`);
   res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.path}` });
 });
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📍 API endpoint: http://localhost:${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`API endpoint: http://localhost:${PORT}`);
 });
 
 export default app;

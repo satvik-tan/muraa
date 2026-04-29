@@ -37,13 +37,13 @@ const HowItWorks = () => {
           {steps.map((step, i) => (
             <div
               key={step.number}
-              className="flex gap-6 sm:gap-8 items-start group"
+              className="flex gap-6 sm:gap-8 items-start group neo-card p-6 transition-all duration-150"
             >
-              <div className="shrink-0 w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-display text-2xl font-black group-hover:scale-110 transition-transform">
+              <div className="shrink-0 w-14 h-14 border-2 border-black bg-primary text-primary-foreground flex items-center justify-center font-display text-2xl font-black">
                 {step.number}
               </div>
               <div className="pt-1">
-                <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-2">
+                <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-2 uppercase">
                   {step.title}
                 </h3>
                 <p className="text-muted-foreground font-body leading-relaxed max-w-lg">

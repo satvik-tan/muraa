@@ -4,13 +4,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* NEO-BRUTALIST DESIGN SYSTEM
+  - warm paper background
+  - single accent color
+  - hard black borders + hard offset shadows
+  - sharp corners and dense spacing
+*/
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-dm-sans), 'DM Sans', sans-serif;
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-merienda), 'Merienda', cursive;
-  --font-body: var(--font-dm-sans), 'DM Sans', sans-serif;
+  --font-sans: var(--font-space-mono), 'Space Mono', monospace;
+  --font-mono: var(--font-space-mono), 'Space Mono', monospace;
+  --font-display: var(--font-syne), 'Syne', sans-serif;
+  --font-body: var(--font-space-mono), 'Space Mono', monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -50,114 +57,152 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 2px;
 
-  /* ── Muraa brand colours (from screenshot) ── */
-  /* Warm cream background */
-  --background: oklch(0.968 0.012 75);
-  /* Dark navy/charcoal text */
-  --foreground: oklch(0.16 0.025 285);
-  /* Cards / popovers sit slightly lighter than bg */
-  --card: oklch(0.982 0.008 75);
-  --card-foreground: oklch(0.16 0.025 285);
-  --popover: oklch(0.982 0.008 75);
-  --popover-foreground: oklch(0.16 0.025 285);
-  /* Coral / salmon primary */
-  --primary: oklch(0.62 0.165 30);
-  --primary-foreground: oklch(0.99 0 0);
-  /* Warm amber secondary (badge) */
-  --secondary: oklch(0.93 0.07 85);
-  --secondary-foreground: oklch(0.28 0.04 65);
-  /* Muted */
-  --muted: oklch(0.945 0.01 75);
-  --muted-foreground: oklch(0.52 0.015 285);
-  /* Accent */
-  --accent: oklch(0.945 0.01 75);
-  --accent-foreground: oklch(0.16 0.025 285);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.88 0.015 75);
-  --input: oklch(0.88 0.015 75);
-  --ring: oklch(0.62 0.165 30);
+  --neo-bg: #f5f0e8;
+  --neo-surface: #fffaf0;
+  --neo-text: #111111;
+  --neo-accent: #ffe500;
+  --neo-accent-ink: #111111;
+  --neo-muted: #e5dfd3;
+  --neo-muted-text: #2f2f2f;
+  --neo-border: #000000;
+  --neo-border-width: 2px;
+  --neo-border-width: 1px;
+  --neo-shadow-sm: none;
+  --neo-shadow-md: none;
+  --neo-shadow-lg: none;
+  --neo-focus-outline: 2px solid #000;
+  --neo-focus-offset: 2px;
+
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: 0.015em;
+  }
+  h1 {
+    font-family: var(--font-display);
+    letter-spacing: 0.01em;
+    text-transform: none;
+    font-weight: 800;
+  }
+  --secondary-foreground: var(--neo-muted-text);
+  --muted: var(--neo-muted);
+  --muted-foreground: var(--neo-muted-text);
+  --accent: var(--neo-accent);
+  --accent-foreground: var(--neo-accent-ink);
+  --destructive: #ff3b00;
+  --border: var(--neo-border);
+  --input: var(--neo-border);
+  --ring: var(--neo-border);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.982 0.008 75);
-  --sidebar-foreground: oklch(0.16 0.025 285);
-  --sidebar-primary: oklch(0.62 0.165 30);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.945 0.01 75);
-  --sidebar-accent-foreground: oklch(0.16 0.025 285);
-  --sidebar-border: oklch(0.88 0.015 75);
-  --sidebar-ring: oklch(0.62 0.165 30);
+  --sidebar-foreground: var(--neo-text);
+  --sidebar-primary: var(--neo-accent);
+  --sidebar-primary-foreground: var(--neo-accent-ink);
+  --sidebar-accent: var(--neo-muted);
+  --sidebar-accent-foreground: var(--neo-text);
+  --sidebar-border: var(--neo-border);
+  --sidebar-ring: var(--neo-border);
 }
 
 /* Cognihire lilac palette, enabled with NEXT_PUBLIC_BRAND=cognihire */
 html[data-brand="cognihire"] {
-  --background: oklch(0.975 0.015 305);
-  --foreground: oklch(0.22 0.04 300);
-  --card: oklch(0.992 0.01 305);
-  --card-foreground: oklch(0.22 0.04 300);
-  --popover: oklch(0.992 0.01 305);
-  --popover-foreground: oklch(0.22 0.04 300);
+  --background: var(--neo-bg);
+  --foreground: var(--neo-text);
+  --card: var(--neo-surface);
+  --card-foreground: var(--neo-text);
+  --popover: var(--neo-surface);
+  --popover-foreground: var(--neo-text);
 
-  --primary: oklch(0.66 0.16 315);
-  --primary-foreground: oklch(0.99 0.01 305);
-  --secondary: oklch(0.9 0.05 305);
-  --secondary-foreground: oklch(0.34 0.05 305);
+  --primary: var(--neo-accent);
+  --primary-foreground: var(--neo-accent-ink);
+  --secondary: var(--neo-muted);
+  --secondary-foreground: var(--neo-muted-text);
 
-  --muted: oklch(0.95 0.015 305);
-  --muted-foreground: oklch(0.52 0.02 305);
-  --accent: oklch(0.93 0.035 305);
-  --accent-foreground: oklch(0.24 0.04 305);
+  --muted: var(--neo-muted);
+  --muted-foreground: var(--neo-muted-text);
+  --accent: var(--neo-accent);
+  --accent-foreground: var(--neo-accent-ink);
 
-  --border: oklch(0.86 0.02 305);
-  --input: oklch(0.86 0.02 305);
-  --ring: oklch(0.66 0.16 315);
+  --border: var(--neo-border);
+  --input: var(--neo-border);
+  --ring: var(--neo-border);
 
-  --sidebar: oklch(0.99 0.01 305);
-  --sidebar-foreground: oklch(0.22 0.04 300);
-  --sidebar-primary: oklch(0.66 0.16 315);
-  --sidebar-primary-foreground: oklch(0.99 0.01 305);
-  --sidebar-accent: oklch(0.93 0.035 305);
-  --sidebar-accent-foreground: oklch(0.24 0.04 305);
-  --sidebar-border: oklch(0.86 0.02 305);
-  --sidebar-ring: oklch(0.66 0.16 315);
+  --sidebar: var(--neo-surface);
+  --sidebar-foreground: var(--neo-text);
+  --sidebar-primary: var(--neo-accent);
+  --sidebar-primary-foreground: var(--neo-accent-ink);
+  --sidebar-accent: var(--neo-muted);
+  --sidebar-accent-foreground: var(--neo-text);
+  --sidebar-border: var(--neo-border);
+  --sidebar-ring: var(--neo-border);
 }
 
+html.dark,
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: #050505;
+  --foreground: #f5f5f5;
+  --card: #111111;
+  --card-foreground: #f5f5f5;
+  --popover: #111111;
+  --popover-foreground: #f5f5f5;
+  --primary: #ffe500;
+  --primary-foreground: #111111;
+  --secondary: #1b1b1b;
+  --secondary-foreground: #e8e8e8;
+  --muted: #161616;
+  --muted-foreground: #bdbdbd;
+  --accent: #ffe500;
+  --accent-foreground: #111111;
+  --destructive: #ff3b00;
+  --border: #2b2b2b;
+  --input: #2b2b2b;
+  --ring: #f5f5f5;
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: #111111;
+  --sidebar-foreground: #f5f5f5;
+  --sidebar-primary: #ffe500;
+  --sidebar-primary-foreground: #111111;
+  --sidebar-accent: #1b1b1b;
+  --sidebar-accent-foreground: #f5f5f5;
+  --sidebar-border: #2b2b2b;
+  --sidebar-ring: #f5f5f5;
+}
+
+/* Respect system preference for an immediate true dark theme on first paint */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #050505;
+    --foreground: #f5f5f5;
+    --card: #111111;
+    --card-foreground: #f5f5f5;
+    --popover: #111111;
+    --popover-foreground: #f5f5f5;
+    --primary: #ffe500;
+    --primary-foreground: #111111;
+    --secondary: #1b1b1b;
+    --secondary-foreground: #e8e8e8;
+    --muted: #161616;
+    --muted-foreground: #bdbdbd;
+    --accent: #ffe500;
+    --accent-foreground: #111111;
+    --destructive: #ff3b00;
+    --border: #2b2b2b;
+    --input: #2b2b2b;
+    --ring: #f5f5f5;
+  }
 }
 
 @layer base {
@@ -171,14 +216,38 @@ html[data-brand="cognihire"] {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
   }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: 0.015em;
+  }
+  button,
+  input,
+  textarea,
+  select,
+  [role="button"] {
+    border-radius: 2px;
+  }
+  input,
+  textarea,
+  select {
+    border: var(--neo-border-width) solid var(--neo-border);
+    background: #fff;
+  }
+  :focus-visible {
+    outline: var(--neo-focus-outline);
+    outline-offset: var(--neo-focus-offset);
+    box-shadow: none;
+  }
 }
 
-/* Coral → purple gradient for hero headline */
+/* Neo-accent helper for legacy usage */
 .text-gradient {
-  background: linear-gradient(90deg, #e8705a 0%, #c45494 50%, #9b6fd4 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--neo-accent);
 }
 
 /* Fade-up animation used in Hero */
@@ -195,4 +264,38 @@ html[data-brand="cognihire"] {
 
 .animate-fade-up {
   animation: fade-up 0.6s ease both;
+}
+
+.neo-card {
+  border: var(--neo-border-width) solid var(--neo-border);
+  border-radius: 2px;
+  box-shadow: none;
+  background: var(--card);
+}
+
+.neo-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.neo-chip {
+  border: var(--neo-border-width) solid var(--neo-border);
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+/* Strip all shadow utilities to create a flat/compact look */
+[class*="shadow"] {
+  box-shadow: none !important;
+}
+
+/* Reduce commonly-used rounded-card paddings to make layout denser */
+.rounded-2xl.p-8, .rounded-3xl.p-8, .neo-card.p-8 {
+  padding: 1.25rem; /* was larger, now compact */
+}
+.rounded-2xl.p-5, .neo-card.p-5 {
+  padding: 0.75rem;
+}
+.rounded-2xl.p-6 {
+  padding: 1rem;
 }

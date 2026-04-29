@@ -19,6 +19,7 @@ type JobPublic = {
   experienceLevel: string | null;
   skills: string[];
   shareId: string;
+  isOpen: boolean;
 };
 
 async function fetchJob(shareId: string): Promise<JobPublic> {
@@ -72,6 +73,11 @@ export default function ApplyPage() {
       return;
     }
 
+    if (!jobQuery.data.isOpen) {
+      setError("This job is no longer accepting applications.");
+      return;
+    }
+
     if (!fullName.trim()) {
       setError("Please enter your full name.");
       return;
@@ -105,7 +111,7 @@ export default function ApplyPage() {
 
   const skillCount = useMemo(() => jobQuery.data?.skills.length ?? 0, [jobQuery.data]);
 
-  if (currentUserQuery.isLoading || jobQuery.isLoading) {
+  if (currentUserQuery.isLoading || jobQuery.isLoading || myApplicationQuery.isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -136,7 +142,7 @@ export default function ApplyPage() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className="container mx-auto max-w-2xl px-4 pt-28 pb-16">
-          <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+          <div className="rounded-3xl border border-border bg-card p-6">
             <h1 className="font-display font-black text-3xl text-foreground mb-2">Choose your role first</h1>
             <p className="text-sm text-muted-foreground mb-6">We need your role before you can apply.</p>
             <div className="flex gap-3">
@@ -158,7 +164,7 @@ export default function ApplyPage() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className="container mx-auto max-w-2xl px-4 pt-28 pb-16">
-          <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+          <div className="rounded-3xl border border-border bg-card p-6">
             <h1 className="font-display font-black text-3xl text-foreground mb-2">Candidate role required</h1>
             <p className="text-sm text-muted-foreground mb-6">This page is for candidates applying to a job.</p>
             <Button disabled={updateUserRole.isPending} onClick={() => updateUserRole.mutate("CANDIDATE")}>
@@ -183,6 +189,22 @@ export default function ApplyPage() {
   }
 
   const job = jobQuery.data;
+
+  if (job && !job.isOpen && !existingApplication) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container mx-auto max-w-3xl px-4 pt-28 pb-16">
+          <div className="rounded-3xl border border-border bg-card p-6">
+            <h1 className="font-display font-black text-3xl text-foreground mb-2">Applications closed</h1>
+            <p className="text-sm text-muted-foreground">
+              This job is no longer accepting new candidates.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -213,7 +235,7 @@ export default function ApplyPage() {
         </div>
 
         {existingApplication ? (
-          <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+          <div className="rounded-3xl border border-border bg-card p-6">
             <h2 className="font-display font-bold text-2xl text-foreground mb-2">Your application</h2>
             <p className="text-sm text-muted-foreground mb-6">
               You already submitted an application for this job.
@@ -235,8 +257,8 @@ export default function ApplyPage() {
               </Button>
             </div>
           </div>
-        ) : (
-          <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+          ) : (
+          <div className="rounded-3xl border border-border bg-card p-6">
             <h2 className="font-display font-bold text-2xl text-foreground mb-2">Build your application</h2>
             <p className="text-sm text-muted-foreground mb-6">
               Tell the recruiter who you are and why you want this role.

@@ -36,6 +36,7 @@ export interface Job {
   experienceLevel: string | null;
   skills: string[];
   shareId: string;
+  isOpen: boolean;
   createdAt: string;
   _count?: { sessions: number };
 }
@@ -130,7 +131,35 @@ export function useJobs() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
 
-  return { jobsQuery, createJob, deleteJob };
+  const updateJobStatus = useMutation({
+    mutationFn: async (input: { jobId: string; isOpen: boolean }) => {
+      const token = await getToken();
+      return authedFetch(`${API}/api/jobs/${input.jobId}/status`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ isOpen: input.isOpen }),
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["jobs", "available"] });
+    },
+  });
+
+  return { jobsQuery, createJob, deleteJob, updateJobStatus };
+}
+
+export function useAvailableJobs(enabled = true) {
+  const getToken = useGetToken();
+
+  return useQuery<Job[]>({
+    queryKey: ["jobs", "available"],
+    enabled,
+    queryFn: async () => {
+      const token = await getToken();
+      const data = await authedFetch(`${API}/api/jobs/available`, token);
+      return data.data;
+    },
+  });
 }
 
 export function useJobCandidates(jobId: string | null) {

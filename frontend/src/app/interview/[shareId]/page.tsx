@@ -82,6 +82,7 @@ interface JobPublic {
   companyName: string | null;
   experienceLevel: string | null;
   skills: string[];
+  isOpen: boolean;
 }
 
 type PageState = "loading" | "form" | "ready" | "error";
@@ -134,6 +135,16 @@ export default function SharedInterviewPage() {
       })
       .catch(() => setPageState("error"));
   }, [params.shareId]);
+
+  // Prefill name/email from signed-in user (move hook out of conditional)
+  const currentUser = currentUserQuery.data;
+  const application = myApplicationQuery.data?.application;
+  useEffect(() => {
+    if (!currentUser) return;
+    // Only prefill if fields are empty to avoid overwriting user edits
+    if (!name && currentUser.name) setName(currentUser.name);
+    if (!email && currentUser.email) setEmail(currentUser.email);
+  }, [currentUser, name, email]);
 
   const { initAudio, playAudio, stopAudio, getAudioContext } = useAudioPlayer();
 
@@ -297,8 +308,7 @@ export default function SharedInterviewPage() {
 
   // ── Candidate info form ──────────────────────────────────────────────────
   if (pageState === "form") {
-    const currentUser = currentUserQuery.data;
-    const application = myApplicationQuery.data?.application;
+    // currentUser and application are already declared above
 
     if (currentUserQuery.isLoading || myApplicationQuery.isLoading) {
       return (
@@ -331,7 +341,7 @@ export default function SharedInterviewPage() {
         <div className="min-h-screen bg-background">
           <Navbar />
           <main className="container mx-auto max-w-2xl px-4 pt-28 pb-16">
-            <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-6">
               <h2 className="font-display font-bold text-xl text-foreground mb-2">Choose your role first</h2>
               <p className="text-sm text-muted-foreground mb-6">
                 Candidates can apply and take interviews. HR users create and review jobs.
@@ -362,7 +372,7 @@ export default function SharedInterviewPage() {
         <div className="min-h-screen bg-background">
           <Navbar />
           <main className="container mx-auto max-w-2xl px-4 pt-28 pb-16">
-            <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-6">
               <h2 className="font-display font-bold text-xl text-foreground mb-2">Candidate role required</h2>
               <p className="text-sm text-muted-foreground mb-6">
                 Your current role is HR. Switch to candidate to apply and take this interview.
@@ -409,7 +419,7 @@ export default function SharedInterviewPage() {
           </div>
 
           {/* Candidate form */}
-          <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6">
             <h2 className="font-display font-bold text-xl text-foreground mb-1">
               Before we begin
             </h2>
@@ -445,6 +455,7 @@ export default function SharedInterviewPage() {
                   placeholder="Jane Smith"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  readOnly={Boolean(currentUser?.name)}
                   onKeyDown={(e) => e.key === "Enter" && handleFormSubmit()}
                 />
               </div>
@@ -455,6 +466,7 @@ export default function SharedInterviewPage() {
                   placeholder="jane@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  readOnly={Boolean(currentUser?.email)}
                   onKeyDown={(e) => e.key === "Enter" && handleFormSubmit()}
                 />
               </div>

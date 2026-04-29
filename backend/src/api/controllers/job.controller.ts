@@ -13,6 +13,10 @@ const createJobSchema = z.object({
   skills: z.array(z.string().trim().min(1)).optional(),
 });
 
+const updateJobStatusSchema = z.object({
+  isOpen: z.boolean(),
+});
+
 /** Resolve the Stack Auth JWT subject to the DB User row */
 async function getUserByStackId(stackUserId: string) {
   return prisma.user.findUnique({ where: { stackUserId } });
@@ -46,6 +50,7 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
         companyName: parsed.data.companyName ?? null,
         experienceLevel: parsed.data.experienceLevel ?? null,
         skills: parsed.data.skills ?? [],
+        isOpen: true,
       },
     });
 
@@ -79,6 +84,87 @@ export const listJobs = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({
       success: false,
       message: "Failed to list jobs",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
+// GET /api/jobs/available
+export const listAvailableJobs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await getUserByStackId(req.user!.sub);
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found" });
+      return;
+    }
+
+    if (user.role !== "CANDIDATE") {
+      res.status(403).json({ success: false, message: "Only candidates can view available jobs" });
+      return;
+    }
+
+    const jobs = await prisma.job.findMany({
+      where: { isOpen: true },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        companyName: true,
+        experienceLevel: true,
+        skills: true,
+        shareId: true,
+        isOpen: true,
+        createdAt: true,
+      },
+    });
+
+    res.status(200).json({ success: true, data: jobs });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to list available jobs",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
+// PATCH /api/jobs/:id/status
+export const updateJobStatus = async (req: Request<JobIdParams>, res: Response): Promise<void> => {
+  const parsed = updateJobStatusSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, message: "Invalid payload", errors: parsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const user = await getUserByStackId(req.user!.sub);
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found" });
+      return;
+    }
+
+    if (user.role !== "HR") {
+      res.status(403).json({ success: false, message: "Only HR users can update job status" });
+      return;
+    }
+
+    const job = await prisma.job.findUnique({ where: { id: req.params.id } });
+    if (!job || job.userId !== user.id) {
+      res.status(404).json({ success: false, message: "Job not found" });
+      return;
+    }
+
+    const updatedJob = await prisma.job.update({
+      where: { id: job.id },
+      data: { isOpen: parsed.data.isOpen },
+    });
+
+    res.status(200).json({ success: true, data: updatedJob });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update job status",
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -122,6 +208,7 @@ export const getJobByShareId = async (req: Request<ShareIdParams>, res: Response
         companyName: true,
         experienceLevel: true,
         skills: true,
+        isOpen: true,
       },
     });
 

@@ -19,4 +19,4 @@ const envPath = path.resolve(__dirname, "../../.env");
 
 dotenv.config({ path: envPath });
 
-console.log(`✅ dotenv loaded from ${envPath}`);
+console.log(`dotenv loaded from ${envPath}`);

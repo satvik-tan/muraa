@@ -30,11 +30,11 @@ const SocialProof = () => {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-20">
           {stats.map((stat) => (
-            <div key={stat.label} className="text-center">
+            <div key={stat.label} className="text-center neo-card p-6 transition-all duration-150">
               <div className="text-4xl sm:text-5xl font-display font-black text-gradient mb-2">
                 {stat.value}
               </div>
-              <div className="text-sm text-muted-foreground font-body">
+              <div className="text-xs uppercase tracking-[0.08em] text-muted-foreground font-body font-bold">
                 {stat.label}
               </div>
             </div>
@@ -46,14 +46,14 @@ const SocialProof = () => {
           {testimonials.map((t) => (
             <div
               key={t.author}
-              className="bg-card rounded-3xl border border-border p-8 hover:shadow-lg transition-shadow"
+              className="neo-card p-8 transition-all duration-150"
             >
               <p className="text-foreground font-body leading-relaxed mb-6 text-lg">
                 "{t.quote}"
               </p>
               <div>
-                <div className="font-body font-semibold text-foreground">{t.author}</div>
-                <div className="text-sm text-muted-foreground font-body">{t.role}</div>
+                <div className="font-body font-semibold text-foreground uppercase">{t.author}</div>
+                <div className="text-sm text-muted-foreground font-body uppercase tracking-[0.05em]">{t.role}</div>
               </div>
             </div>
           ))}

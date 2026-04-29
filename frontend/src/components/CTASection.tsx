@@ -5,7 +5,7 @@ const CTASection = () => {
   return (
     <section className="py-24 px-4">
       <div className="container mx-auto max-w-4xl text-center">
-        <div className="bg-primary rounded-[2rem] p-12 sm:p-16">
+        <div className="bg-primary border-2 border-black p-6 sm:p-8">
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-display font-black text-primary-foreground mb-4">
             Ready to hire smarter?
           </h2>
@@ -15,7 +15,7 @@ const CTASection = () => {
           <Button
             asChild
             size="lg"
-            className="bg-background text-foreground hover:bg-background/90 text-lg px-8 py-6 rounded-full font-body font-semibold"
+            className="bg-background text-foreground hover:bg-background text-lg px-8 py-6 font-body font-semibold"
           >
             <Link href="/handler/sign-up">Start for free →</Link>
           </Button>

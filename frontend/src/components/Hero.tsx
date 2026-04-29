@@ -10,30 +10,29 @@ const Hero = () => {
   return (
     <section className="pt-32 pb-20 px-4 overflow-hidden">
       <div className="container mx-auto text-center max-w-5xl">
-        <div className="inline-block mb-6 px-4 py-1.5 rounded-full bg-secondary text-secondary-foreground text-sm font-body font-semibold animate-fade-up">
+        <div className="inline-block mb-6 px-3 py-1.5 border-2 border-black bg-secondary text-secondary-foreground text-xs uppercase tracking-[0.08em] font-body font-bold animate-fade-up">
           🚀 Trusted by hiring teams using {brand.appName}
         </div>
-        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-black leading-[0.95] mb-6 animate-fade-up text-foreground" style={{ animationDelay: "0.1s" }}>
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-black leading-[1] mb-6 animate-fade-up text-foreground" style={{ animationDelay: "0.1s" }}>
           Hire smarter with<br />
           <span className="text-gradient">{brand.appNameWithSuffix}</span>
         </h1>
         <p className="text-lg sm:text-xl text-muted-foreground font-body max-w-2xl mx-auto mb-10 animate-fade-up" style={{ animationDelay: "0.2s" }}>
           Screen candidates faster with structured, role-aware interviews. CogniHire asks the right questions, evaluates responses, and gives you actionable insights — so you can focus on the best talent.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fade-up" style={{ animationDelay: "0.3s" }}>
-          <Button asChild size="lg" className="text-lg px-8 py-6 rounded-full font-body font-semibold">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-12 animate-fade-up" style={{ animationDelay: "0.3s" }}>
+          <Button asChild size="lg" className="text-lg px-6 py-3 font-body font-semibold">
             <Link href="/handler/sign-up">Start for free →</Link>
           </Button>
-          <Button variant="outline" size="lg" className="text-lg px-8 py-6 rounded-full font-body font-semibold">
+          <Button variant="outline" size="lg" className="text-lg px-6 py-3 font-body font-semibold bg-card">
             Watch demo
           </Button>
         </div>
         <div className="relative animate-fade-up" style={{ animationDelay: "0.4s" }}>
-          <div className="absolute -inset-4 bg-primary/10 rounded-3xl blur-3xl" />
           <Image
             src={heroMockup}
             alt="CogniHire interview platform showing an AI avatar conducting a video interview with a candidate"
-            className="relative rounded-2xl border border-border shadow-2xl w-full h-auto"
+            className="relative border-2 border-black w-full h-auto"
             priority
           />
         </div>

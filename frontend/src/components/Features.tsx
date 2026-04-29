@@ -23,7 +23,7 @@ const features = [
     icon: Users,
     title: "Team Collaboration",
     description: "Share interview results, leave comments, and make hiring decisions together — all in one place.",
-    color: "bg-highlight text-highlight-foreground",
+    color: "bg-background text-foreground",
   },
 ];
 
@@ -43,12 +43,12 @@ const Features = () => {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group bg-card rounded-3xl border border-border p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              className="group neo-card p-6 transition-all duration-100"
             >
-              <div className={`w-14 h-14 rounded-2xl ${feature.color} flex items-center justify-center mb-6`}>
+              <div className={`w-12 h-12 border-2 border-black ${feature.color} flex items-center justify-center mb-4`}>
                 <feature.icon className="w-7 h-7" />
               </div>
-              <h3 className="text-2xl font-display font-bold text-card-foreground mb-3">
+              <h3 className="text-2xl font-display font-bold text-card-foreground mb-3 uppercase">
                 {feature.title}
               </h3>
               <p className="text-muted-foreground font-body leading-relaxed">

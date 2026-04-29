@@ -1,26 +1,22 @@
 import type { Metadata } from "next";
 import { StackProvider, StackTheme } from "@stackframe/stack";
 import { stackClientApp } from "../stack/client";
-import { DM_Sans, Geist_Mono, Merienda } from "next/font/google";
+import { Space_Mono, Syne } from "next/font/google";
 import { Providers } from "./providers";
+import ThemeToggle from "@/components/ThemeToggle";
 import { getBrandConfig } from "@/lib/branding";
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
+const spaceMono = Space_Mono({
+  variable: "--font-space-mono",
   subsets: ["latin"],
-  axes: ["opsz"],
+  weight: ["400", "700"],
 });
 
-const merienda = Merienda({
-  variable: "--font-merienda",
+const syne = Syne({
+  variable: "--font-syne",
   subsets: ["latin"],
-  weight: ["700", "800", "900"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["700", "800"],
 });
 
 const brand = getBrandConfig();
@@ -38,9 +34,10 @@ export default function RootLayout({
   return (
     <html lang="en" data-brand={brand.key}>
       <body
-        className={`${dmSans.variable} ${merienda.variable} ${geistMono.variable} antialiased`}
+        className={`${spaceMono.variable} ${syne.variable} antialiased`}
       ><StackProvider app={stackClientApp}><StackTheme>
         <Providers>
+          <ThemeToggle />
           {children}
         </Providers>
       </StackTheme></StackProvider></body>

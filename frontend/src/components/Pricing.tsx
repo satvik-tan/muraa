@@ -45,18 +45,18 @@ const Pricing = () => {
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`rounded-3xl border p-8 flex flex-col ${
+              className={`border-2 border-black p-6 flex flex-col transition-all duration-100 ${
                 plan.popular
-                  ? "border-primary bg-primary/5 shadow-xl scale-[1.02]"
+                  ? "bg-primary/20"
                   : "border-border bg-background"
               }`}
             >
               {plan.popular && (
-                <div className="inline-block self-start mb-4 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-body font-semibold">
+                <div className="inline-block self-start mb-4 px-3 py-1 border-2 border-black bg-primary text-primary-foreground text-xs uppercase tracking-[0.08em] font-body font-bold">
                   Most popular
                 </div>
               )}
-              <h3 className="text-2xl font-display font-bold text-foreground mb-1">{plan.name}</h3>
+              <h3 className="text-2xl font-display font-bold text-foreground mb-1 uppercase">{plan.name}</h3>
               <div className="flex items-baseline gap-1 mb-2">
                 <span className="text-4xl font-display font-black text-foreground">{plan.price}</span>
                 {plan.period && <span className="text-muted-foreground font-body">{plan.period}</span>}
@@ -71,7 +71,7 @@ const Pricing = () => {
                 ))}
               </ul>
               <Button
-                className={`w-full rounded-full font-body font-semibold ${
+                className={`w-full font-body font-semibold ${
                   plan.popular ? "" : "bg-foreground text-background hover:bg-foreground/90"
                 }`}
                 variant={plan.popular ? "default" : "outline"}

@@ -46,6 +46,11 @@ export const createApplication = async (req: Request, res: Response): Promise<vo
       return;
     }
 
+    if (!job.isOpen) {
+      res.status(403).json({ success: false, message: "This job is no longer accepting applications" });
+      return;
+    }
+
     const existing = await prisma.application.findUnique({
       where: {
         candidateId_jobId: {
